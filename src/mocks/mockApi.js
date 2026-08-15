@@ -4,46 +4,62 @@
 |--------------------------------------------------------------------------
 |
 | PURPOSE
-| -------
-| This file simulates the backend API while the actual backend is being
-| developed.
+|--------------------------------------------------------------------------
 |
-| The frontend communicates with this file through `api.js`.
+| This file simulates the VanDrishti backend while the real backend
+| is being developed.
 |
-| Current architecture:
+| The frontend should NEVER depend directly on mockDB.
 |
-| Component
+| Frontend
 |    ↓
 | Service
 |    ↓
 | api.js
 |    ↓
-| mockApi.js       ← CURRENT FILE
+| mockApi.js       ← THIS FILE
 |    ↓
-| mockDB.js
+| mockDB
 |
 |
-| WHEN BACKEND IS READY
-| ---------------------
-| The frontend should NOT need to change its components.
+| IMPORTANT
+|--------------------------------------------------------------------------
 |
-| We simply change:
+| VanDrishti uses OFFLINE camera traps.
 |
-|     USE_MOCK_API = true
+| The actual field workflow is:
 |
-| to:
+| Camera Trap
+|      ↓
+| SD Card
+|      ↓
+| Forest Officer collects SD Card
+|      ↓
+| Dataset Import
+|      ↓
+| Processing Job
+|      ↓
+| AI Detection
+|      ↓
+| Re-ID
+|      ↓
+| Tiger / Review
 |
-|     USE_MOCK_API = false
 |
-| in `services/api.js`.
+| The mock API therefore models:
 |
-|
-| IMPORTANT FOR BACKEND DEVELOPERS
-| --------------------------------
-| The endpoint names and response structures below represent the API
-| contracts expected by the frontend.
-|
-| The mock database is NOT the final database schema.
+| 1. Forest Officer authentication
+| 2. Dashboard / Overview
+| 3. Tigers
+| 4. Tiger sightings
+| 5. Tiger Re-ID
+| 6. Cameras
+| 7. Camera collections
+| 8. Camera captures
+| 9. Processing jobs
+| 10. Image import sessions
+| 11. Alerts
+| 12. Image reviews
 |
 |--------------------------------------------------------------------------
 */
@@ -52,54 +68,104 @@ import { mockDB } from "./db";
 
 
 // ============================================================================
-// CONFIGURATION
+// MOCK NETWORK DELAY
 // ============================================================================
 
 /*
 |--------------------------------------------------------------------------
-| MOCK NETWORK DELAY
+| Simulate real API latency.
 |--------------------------------------------------------------------------
 |
-| Real APIs have network/database latency.
-|
-| We intentionally simulate a small delay so the frontend can properly
-| implement:
+| This is useful because it forces the frontend to properly handle:
 |
 | - Loading states
-| - Skeletons
 | - Error states
-| - Async behaviour
+| - Async requests
+| - Skeletons
 |
 */
 
 const delay = (
-  milliseconds = 450
+  milliseconds = 400
 ) => {
+
   return new Promise(
-    (resolve) =>
+    (resolve) => {
+
       setTimeout(
         resolve,
         milliseconds
-      )
+      );
+
+    }
   );
+
 };
 
 
 // ============================================================================
-// HELPER FUNCTIONS
+// API RESPONSE HELPERS
 // ============================================================================
 
 /*
 |--------------------------------------------------------------------------
-| REMOVE SENSITIVE OFFICER DATA
+| SUCCESS RESPONSE
+|--------------------------------------------------------------------------
+|
+| All successful mock API calls follow the same structure.
+|
+| {
+|     success: true,
+|     data: ...
+| }
+|
+*/
+
+const successResponse = (
+  data
+) => {
+
+  return {
+    success: true,
+    data,
+  };
+
+};
+
+
+/*
+|--------------------------------------------------------------------------
+| ERROR HELPER
+|--------------------------------------------------------------------------
+*/
+
+const createApiError = (
+  message,
+  status = 400
+) => {
+
+  const error =
+    new Error(message);
+
+  error.status =
+    status;
+
+  return error;
+
+};
+
+
+/*
+|--------------------------------------------------------------------------
+| SANITIZE FOREST OFFICER
 |--------------------------------------------------------------------------
 |
 | Passwords should NEVER be returned to the frontend.
 |
-| The mock database contains passwords only because it is simulating
+| The mock database contains passwords only because we are simulating
 | authentication.
 |
-| A real backend should return a safe user/session object instead.
+| A real backend would hash passwords and never expose them.
 |
 */
 
@@ -113,58 +179,7 @@ const sanitizeOfficer = (
   } = officer;
 
   return safeOfficer;
-};
 
-
-/*
-|--------------------------------------------------------------------------
-| SUCCESS RESPONSE
-|--------------------------------------------------------------------------
-|
-| Keeping a consistent response structure makes the frontend easier
-| to maintain.
-|
-| Example:
-|
-| {
-|   success: true,
-|   data: [...]
-| }
-|
-*/
-
-const successResponse = (
-  data
-) => {
-
-  return {
-    success: true,
-    data,
-  };
-};
-
-
-/*
-|--------------------------------------------------------------------------
-| ERROR CREATOR
-|--------------------------------------------------------------------------
-|
-| The frontend services can catch this error and display an appropriate
-| message.
-|
-*/
-
-const createApiError = (
-  message,
-  status = 400
-) => {
-
-  const error =
-    new Error(message);
-
-  error.status = status;
-
-  return error;
 };
 
 
@@ -179,45 +194,21 @@ export const mockApi = {
   // GET
   // ==========================================================================
 
-  async get(endpoint) {
-
-    /*
-    |--------------------------------------------------------------------------
-    | Simulate network latency
-    |--------------------------------------------------------------------------
-    */
+  async get(
+    endpoint
+  ) {
 
     await delay();
 
 
     // ========================================================================
-    // DYNAMIC TIGER ENDPOINTS
+    // TIGER PROFILE
     // ========================================================================
-    //
-    // These must be checked BEFORE the static switch.
-    //
-    // Supported:
-    //
-    // GET /api/tigers/:tigerId
-    // GET /api/tigers/:tigerId/sightings
-    // GET /api/tigers/:tigerId/reid
-    //
-    // ========================================================================
-
 
     /*
     |--------------------------------------------------------------------------
-    | GET SINGLE TIGER
+    | GET /api/tigers/:tigerId
     |--------------------------------------------------------------------------
-    |
-    | Endpoint:
-    |
-    | GET /api/tigers/TGR-024
-    |
-    | Used by:
-    |
-    | TigerProfile.jsx
-    |
     */
 
     const tigerProfileMatch =
@@ -226,7 +217,9 @@ export const mockApi = {
       );
 
 
-    if (tigerProfileMatch) {
+    if (
+      tigerProfileMatch
+    ) {
 
       const tigerId =
         tigerProfileMatch[1];
@@ -235,7 +228,8 @@ export const mockApi = {
       const tiger =
         mockDB.tigers.find(
           (item) =>
-            item.id === tigerId
+            item.id ===
+            tigerId
         );
 
 
@@ -252,22 +246,18 @@ export const mockApi = {
       return successResponse(
         tiger
       );
+
     }
 
 
+    // ========================================================================
+    // TIGER SIGHTINGS
+    // ========================================================================
+
     /*
     |--------------------------------------------------------------------------
-    | GET TIGER SIGHTINGS
+    | GET /api/tigers/:tigerId/sightings
     |--------------------------------------------------------------------------
-    |
-    | Endpoint:
-    |
-    | GET /api/tigers/TGR-024/sightings
-    |
-    | Used by:
-    |
-    | TigerProfile.jsx
-    |
     */
 
     const tigerSightingsMatch =
@@ -276,7 +266,9 @@ export const mockApi = {
       );
 
 
-    if (tigerSightingsMatch) {
+    if (
+      tigerSightingsMatch
+    ) {
 
       const tigerId =
         tigerSightingsMatch[1];
@@ -293,26 +285,18 @@ export const mockApi = {
       return successResponse(
         sightings
       );
+
     }
 
 
+    // ========================================================================
+    // TIGER RE-ID
+    // ========================================================================
+
     /*
     |--------------------------------------------------------------------------
-    | GET TIGER RE-ID HISTORY
+    | GET /api/tigers/:tigerId/reid
     |--------------------------------------------------------------------------
-    |
-    | Endpoint:
-    |
-    | GET /api/tigers/TGR-024/reid
-    |
-    | Used by:
-    |
-    | TigerProfile.jsx
-    |
-    | Future backend source:
-    |
-    | ML / Re-ID pipeline
-    |
     */
 
     const tigerReidMatch =
@@ -321,7 +305,9 @@ export const mockApi = {
       );
 
 
-    if (tigerReidMatch) {
+    if (
+      tigerReidMatch
+    ) {
 
       const tigerId =
         tigerReidMatch[1];
@@ -338,14 +324,144 @@ export const mockApi = {
       return successResponse(
         matches
       );
+
     }
 
 
     // ========================================================================
-    // STATIC ENDPOINTS
+    // CAMERA PROFILE
     // ========================================================================
 
-    switch (endpoint) {
+    /*
+    |--------------------------------------------------------------------------
+    | GET /api/cameras/:cameraId
+    |--------------------------------------------------------------------------
+    */
+
+    const cameraProfileMatch =
+      endpoint.match(
+        /^\/api\/cameras\/([^/]+)$/
+      );
+
+
+    if (
+      cameraProfileMatch
+    ) {
+
+      const cameraId =
+        cameraProfileMatch[1];
+
+
+      const camera =
+        mockDB.cameras.find(
+          (item) =>
+            item.id ===
+            cameraId
+        );
+
+
+      if (!camera) {
+
+        throw createApiError(
+          "Camera not found.",
+          404
+        );
+
+      }
+
+
+      return successResponse(
+        camera
+      );
+
+    }
+
+
+    // ========================================================================
+    // CAMERA COLLECTIONS
+    // ========================================================================
+
+    /*
+    |--------------------------------------------------------------------------
+    | GET /api/cameras/:cameraId/collections
+    |--------------------------------------------------------------------------
+    */
+
+    const cameraCollectionsMatch =
+      endpoint.match(
+        /^\/api\/cameras\/([^/]+)\/collections$/
+      );
+
+
+    if (
+      cameraCollectionsMatch
+    ) {
+
+      const cameraId =
+        cameraCollectionsMatch[1];
+
+
+      const collections =
+        mockDB.cameraCollections.filter(
+          (item) =>
+            item.cameraId ===
+            cameraId
+        );
+
+
+      return successResponse(
+        collections
+      );
+
+    }
+
+
+    // ========================================================================
+    // CAMERA CAPTURES
+    // ========================================================================
+
+    /*
+    |--------------------------------------------------------------------------
+    | GET /api/cameras/:cameraId/captures
+    |--------------------------------------------------------------------------
+    */
+
+    const cameraCapturesMatch =
+      endpoint.match(
+        /^\/api\/cameras\/([^/]+)\/captures$/
+      );
+
+
+    if (
+      cameraCapturesMatch
+    ) {
+
+      const cameraId =
+        cameraCapturesMatch[1];
+
+
+      const captures =
+        mockDB.cameraCaptures.filter(
+          (item) =>
+            item.cameraId ===
+            cameraId
+        );
+
+
+      return successResponse(
+        captures
+      );
+
+    }
+
+
+    // ========================================================================
+    // STATIC GET ENDPOINTS
+    // ========================================================================
+
+    switch (
+      endpoint
+    ) {
 
 
       // ======================================================================
@@ -354,36 +470,16 @@ export const mockApi = {
 
       /*
       |--------------------------------------------------------------------------
-      | GET OVERVIEW
+      | GET /api/overview
       |--------------------------------------------------------------------------
       |
-      | Endpoint:
-      |
-      | GET /api/overview
-      |
-      | Purpose:
-      |
-      | Provides the data required by the VanDrishti command dashboard.
-      |
-      | A real backend can construct this response from:
-      |
-      | - Tiger database
-      | - Camera service
-      | - Sightings database
-      | - Re-ID pipeline
-      | - Alert service
+      | Main VanDrishti command dashboard data.
       |
       */
 
       case "/api/overview":
 
         return successResponse({
-
-          /*
-          |--------------------------------------------------------------------------
-          | SYSTEM STATUS
-          |--------------------------------------------------------------------------
-          */
 
           system: {
 
@@ -395,14 +491,9 @@ export const mockApi = {
 
             monitoringActive:
               true,
+
           },
 
-
-          /*
-          |--------------------------------------------------------------------------
-          | DASHBOARD STATISTICS
-          |--------------------------------------------------------------------------
-          */
 
           statistics: {
 
@@ -424,30 +515,23 @@ export const mockApi = {
             totalCameras:
               124,
 
-            onlineCameras:
+            deployedCameras:
               118,
 
-            offlineCameras:
+            collectionDue:
               6,
 
+            pendingProcessingImages:
+              1521,
+
             pendingReviews:
-              4,
+              12,
 
             activeAlerts:
               2,
+
           },
 
-
-          /*
-          |--------------------------------------------------------------------------
-          | TIGER ACTIVITY CHART
-          |--------------------------------------------------------------------------
-          |
-          | Used by:
-          |
-          | Overview → Wildlife Activity
-          |
-          */
 
           activity: [
 
@@ -489,12 +573,6 @@ export const mockApi = {
           ],
 
 
-          /*
-          |--------------------------------------------------------------------------
-          | RECENT SIGHTINGS
-          |--------------------------------------------------------------------------
-          */
-
           recentSightings: [
 
             {
@@ -520,7 +598,9 @@ export const mockApi = {
 
               status:
                 "verified",
+
             },
+
 
             {
               id: "SIG-1023",
@@ -545,7 +625,9 @@ export const mockApi = {
 
               status:
                 "verified",
+
             },
+
 
             {
               id: "SIG-1022",
@@ -570,7 +652,9 @@ export const mockApi = {
 
               status:
                 "review",
+
             },
+
 
             {
               id: "SIG-1021",
@@ -595,16 +679,11 @@ export const mockApi = {
 
               status:
                 "verified",
+
             },
 
           ],
 
-
-          /*
-          |--------------------------------------------------------------------------
-          | INTELLIGENCE SUMMARY
-          |--------------------------------------------------------------------------
-          */
 
           intelligence: {
 
@@ -622,14 +701,9 @@ export const mockApi = {
 
             detectionAccuracy:
               94.7,
+
           },
 
-
-          /*
-          |--------------------------------------------------------------------------
-          | ZONE ACTIVITY
-          |--------------------------------------------------------------------------
-          */
 
           zones: [
 
@@ -645,7 +719,9 @@ export const mockApi = {
 
               status:
                 "active",
+
             },
+
 
             {
               id:
@@ -659,7 +735,9 @@ export const mockApi = {
 
               status:
                 "active",
+
             },
+
 
             {
               id:
@@ -673,6 +751,7 @@ export const mockApi = {
 
               status:
                 "active",
+
             },
 
           ],
@@ -681,33 +760,13 @@ export const mockApi = {
 
 
       // ======================================================================
-      // TIGER LIST
+      // TIGERS
       // ======================================================================
 
       /*
       |--------------------------------------------------------------------------
-      | GET ALL TIGERS
-      |--------------------------------------------------------------------------
-      |
-      | Endpoint:
-      |
       | GET /api/tigers
-      |
-      | Used by:
-      |
-      | Tigers.jsx
-      |
-      | Backend should eventually support:
-      |
-      | - Pagination
-      | - Search
-      | - Zone filtering
-      | - Status filtering
-      |
-      | Example future API:
-      |
-      | GET /api/tigers?page=1&limit=20&zone=Moharli
-      |
+      |--------------------------------------------------------------------------
       */
 
       case "/api/tigers":
@@ -718,21 +777,20 @@ export const mockApi = {
 
 
       // ======================================================================
-      // CAMERA LIST
+      // CAMERAS
       // ======================================================================
 
       /*
       |--------------------------------------------------------------------------
-      | GET ALL CAMERAS
+      | GET /api/cameras
       |--------------------------------------------------------------------------
       |
-      | Endpoint:
+      | Returns the deployed camera-trap registry.
       |
-      | GET /api/cameras
+      | IMPORTANT:
       |
-      | Used by:
-      |
-      | Future Cameras page
+      | "status" represents field/deployment state.
+      | It does NOT mean internet connectivity.
       |
       */
 
@@ -744,25 +802,47 @@ export const mockApi = {
 
 
       // ======================================================================
-      // GENERAL SIGHTINGS
+      // ALL CAMERA COLLECTIONS
       // ======================================================================
 
       /*
       |--------------------------------------------------------------------------
-      | GET ALL SIGHTINGS
+      | GET /api/collections
       |--------------------------------------------------------------------------
-      |
-      | Endpoint:
-      |
+      */
+
+      case "/api/collections":
+
+        return successResponse(
+          mockDB.cameraCollections
+        );
+
+
+      // ======================================================================
+      // ALL PROCESSING JOBS
+      // ======================================================================
+
+      /*
+      |--------------------------------------------------------------------------
+      | GET /api/processing/jobs
+      |--------------------------------------------------------------------------
+      */
+
+      case "/api/processing/jobs":
+
+        return successResponse(
+          mockDB.processingJobs
+        );
+
+
+      // ======================================================================
+      // ALL SIGHTINGS
+      // ======================================================================
+
+      /*
+      |--------------------------------------------------------------------------
       | GET /api/sightings
-      |
-      | Used by:
-      |
-      | Future:
-      | - Sightings dashboard
-      | - Analytics
-      | - Review workflow
-      |
+      |--------------------------------------------------------------------------
       */
 
       case "/api/sightings":
@@ -778,20 +858,8 @@ export const mockApi = {
 
       /*
       |--------------------------------------------------------------------------
-      | GET ALERTS
-      |--------------------------------------------------------------------------
-      |
-      | Endpoint:
-      |
       | GET /api/alerts
-      |
-      | Future backend sources:
-      |
-      | - Camera failures
-      | - Low confidence detections
-      | - Unknown tiger detections
-      | - Restricted-zone activity
-      |
+      |--------------------------------------------------------------------------
       */
 
       case "/api/alerts":
@@ -807,16 +875,10 @@ export const mockApi = {
 
       /*
       |--------------------------------------------------------------------------
-      | GET IMAGE REVIEWS
+      | GET /api/reviews
       |--------------------------------------------------------------------------
       |
-      | Endpoint:
-      |
-      | GET /api/reviews
-      |
-      | Used by:
-      |
-      | Future Image Review page.
+      | These are images that require human verification.
       |
       */
 
@@ -834,7 +896,7 @@ export const mockApi = {
       default:
 
         throw createApiError(
-          `GET ${endpoint} is not implemented in the VanDrishti mock API.`,
+          `GET ${endpoint} is not implemented in the VanDrishti Mock API.`,
           404
         );
 
@@ -852,16 +914,12 @@ export const mockApi = {
     body
   ) {
 
-    /*
-    |--------------------------------------------------------------------------
-    | Simulate network latency
-    |--------------------------------------------------------------------------
-    */
-
     await delay();
 
 
-    switch (endpoint) {
+    switch (
+      endpoint
+    ) {
 
 
       // ======================================================================
@@ -873,34 +931,15 @@ export const mockApi = {
       | POST /api/auth/login
       |--------------------------------------------------------------------------
       |
-      | IMPORTANT:
-      |
-      | VanDrishti currently does NOT implement:
+      | VanDrishti intentionally does NOT have:
       |
       | - Admin login
-      | - Public user registration
-      | - Multiple user roles
+      | - Public registration
+      | - Multiple user login systems
       |
-      | Only Forest Officer authentication is required.
+      | Authentication is based on:
       |
-      |
-      | Request:
-      |
-      | {
-      |   officerId: "FO-1024",
-      |   password: "forest123"
-      | }
-      |
-      |
-      | Response:
-      |
-      | {
-      |   success: true,
-      |   data: {
-      |      session: {...},
-      |      officer: {...}
-      |   }
-      | }
+      | Forest Officer ID + Password
       |
       */
 
@@ -911,12 +950,6 @@ export const mockApi = {
           password,
         } = body;
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Validate request body
-        |--------------------------------------------------------------------------
-        */
 
         if (
           !officerId ||
@@ -931,16 +964,11 @@ export const mockApi = {
         }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Find officer
-        |--------------------------------------------------------------------------
-        */
-
         const officer =
           mockDB.forestOfficers.find(
             (item) =>
-              item.id.toLowerCase() ===
+              item.id
+                .toLowerCase() ===
               officerId
                 .toLowerCase()
           );
@@ -956,12 +984,6 @@ export const mockApi = {
         }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Validate password
-        |--------------------------------------------------------------------------
-        */
-
         if (
           officer.password !==
           password
@@ -974,12 +996,6 @@ export const mockApi = {
 
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Check account status
-        |--------------------------------------------------------------------------
-        */
 
         if (
           !officer.active
@@ -995,14 +1011,10 @@ export const mockApi = {
 
         /*
         |--------------------------------------------------------------------------
-        | Create mock session
+        | MOCK SESSION
         |--------------------------------------------------------------------------
         |
-        | Real backend equivalent could return:
-        |
-        | JWT
-        | Refresh token
-        | Session ID
+        | Production backend can replace this with JWT/session authentication.
         |
         */
 
@@ -1019,19 +1031,11 @@ export const mockApi = {
 
             sessionId,
 
-            /*
-             * Mock expiration.
-             * Real backend should manage this.
-             */
-
             expiresIn:
               3600,
+
           },
 
-
-          /*
-           * NEVER return password.
-           */
 
           officer:
             sanitizeOfficer(
@@ -1051,25 +1055,160 @@ export const mockApi = {
       |--------------------------------------------------------------------------
       | POST /api/auth/logout
       |--------------------------------------------------------------------------
-      |
-      | In the mock environment there is no real server-side session.
-      |
-      | The frontend can remove its local session.
-      |
-      | A real backend should invalidate the session/token here.
-      |
       */
 
       case "/api/auth/logout":
 
         return successResponse({
+
           message:
             "Forest Officer logged out successfully.",
+
         });
 
 
       // ======================================================================
-      // FUTURE IMAGE PROCESSING
+      // CREATE CAMERA DATA IMPORT
+      // ======================================================================
+
+      /*
+      |--------------------------------------------------------------------------
+      | POST /api/imports
+      |--------------------------------------------------------------------------
+      |
+      | IMPORTANT BACKEND CONTRACT
+      |--------------------------------------------------------------------------
+      |
+      | This endpoint DOES NOT receive the huge ZIP directly.
+      |
+      | The correct production workflow is:
+      |
+      | Frontend
+      |    ↓
+      | POST /api/imports
+      |    ↓
+      | Backend creates upload session
+      |    ↓
+      | Backend returns upload URL
+      |    ↓
+      | Browser uploads large file
+      |    ↓
+      | Object Storage
+      |    ↓
+      | Upload complete
+      |    ↓
+      | Backend creates processing job
+      |
+      */
+
+      case "/api/imports": {
+
+        const {
+          cameraId,
+          collectionDate,
+          collectedBy,
+          datasetName,
+          sourceType,
+          fileName,
+          fileSize,
+        } = body;
+
+
+        if (!cameraId) {
+
+          throw createApiError(
+            "Camera ID is required.",
+            400
+          );
+
+        }
+
+
+        if (!collectionDate) {
+
+          throw createApiError(
+            "Collection date is required.",
+            400
+          );
+
+        }
+
+
+        if (!collectedBy) {
+
+          throw createApiError(
+            "Collector information is required.",
+            400
+          );
+
+        }
+
+
+        const importId =
+          `IMP-${Date.now()}`;
+
+
+        const uploadId =
+          `UPLOAD-${Date.now()}`;
+
+
+        return successResponse({
+
+          importId,
+
+          uploadId,
+
+          status:
+            "upload_pending",
+
+
+          dataset: {
+
+            cameraId,
+
+            collectionDate,
+
+            collectedBy,
+
+            datasetName:
+              datasetName ||
+              "Untitled Dataset",
+
+            sourceType:
+              sourceType ||
+              "zip",
+
+            fileName:
+              fileName ||
+              null,
+
+            fileSize:
+              fileSize ||
+              0,
+
+          },
+
+
+          upload: {
+
+            method:
+              "PUT",
+
+            uploadUrl:
+              `/mock-upload/${uploadId}`,
+
+            expiresIn:
+              3600,
+
+          },
+
+        });
+
+      }
+
+
+      // ======================================================================
+      // REVIEW DECISION
       // ======================================================================
 
       /*
@@ -1077,28 +1216,62 @@ export const mockApi = {
       | POST /api/reviews/:reviewId/decision
       |--------------------------------------------------------------------------
       |
-      | This endpoint is intentionally NOT implemented yet.
+      | Future human-in-the-loop workflow.
       |
-      | Future workflow:
+      | Example:
       |
-      | Forest Officer
-      |       ↓
-      | Image Review
-      |       ↓
-      | Confirm / Reject / Unknown
-      |       ↓
-      | Backend
-      |       ↓
-      | Tiger registry update
+      | {
+      |    decision: "confirmed",
+      |    tigerId: "TGR-024"
+      | }
       |
       */
 
-      default:
+      default: {
+
+        const reviewMatch =
+          endpoint.match(
+            /^\/api\/reviews\/([^/]+)\/decision$/
+          );
+
+
+        if (
+          reviewMatch
+        ) {
+
+          const reviewId =
+            reviewMatch[1];
+
+
+          return successResponse({
+
+            reviewId,
+
+            status:
+              "decision_recorded",
+
+            message:
+              "Mock review decision recorded.",
+
+            decision:
+              body?.decision ||
+              null,
+
+            tigerId:
+              body?.tigerId ||
+              null,
+
+          });
+
+        }
+
 
         throw createApiError(
-          `POST ${endpoint} is not implemented in the VanDrishti mock API.`,
+          `POST ${endpoint} is not implemented in the VanDrishti Mock API.`,
           404
         );
+
+      }
 
     }
 
@@ -1114,13 +1287,13 @@ export const mockApi = {
     body
   ) {
 
+    await delay();
+
+
     /*
     |--------------------------------------------------------------------------
-    | PUT is currently a placeholder.
+    | PUT PLACEHOLDER
     |--------------------------------------------------------------------------
-    |
-    | We keep this method so frontend services can already be designed
-    | around REST-style APIs.
     |
     | Future examples:
     |
@@ -1130,17 +1303,15 @@ export const mockApi = {
     |
     */
 
-    await delay();
-
-
     console.log(
-      "[MOCK PUT]",
+      "[VanDrishti MOCK PUT]",
       endpoint,
       body
     );
 
 
     return successResponse({
+
       message:
         "Mock PUT request accepted.",
 
@@ -1148,6 +1319,7 @@ export const mockApi = {
 
       data:
         body,
+
     });
 
   },
@@ -1161,40 +1333,37 @@ export const mockApi = {
     endpoint
   ) {
 
-    /*
-    |--------------------------------------------------------------------------
-    | DELETE is currently a placeholder.
-    |--------------------------------------------------------------------------
-    |
-    | Most VanDrishti entities may not actually be physically deleted.
-    |
-    | In a real wildlife monitoring system, records such as sightings
-    | and Re-ID evidence should generally be retained for auditing.
-    |
-    | Therefore, future backend design should prefer:
-    |
-    | - Soft deletion
-    | - Archiving
-    | - Status changes
-    |
-    | instead of permanently deleting evidence.
-    |
-    */
-
     await delay();
 
 
+    /*
+    |--------------------------------------------------------------------------
+    | DELETE PLACEHOLDER
+    |--------------------------------------------------------------------------
+    |
+    | Wildlife evidence should generally not be permanently deleted.
+    |
+    | Production backend should prefer:
+    |
+    | - Archiving
+    | - Soft deletion
+    | - Status changes
+    |
+    */
+
     console.log(
-      "[MOCK DELETE]",
+      "[VanDrishti MOCK DELETE]",
       endpoint
     );
 
 
     return successResponse({
+
       message:
         "Mock DELETE request accepted.",
 
       endpoint,
+
     });
 
   },

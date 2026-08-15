@@ -701,4 +701,633 @@ export const mockDB = {
         "2026-08-15T18:10:00Z",
     },
   ],
-};
+  /*
+|--------------------------------------------------------------------------
+| CAMERA REGISTRY
+|--------------------------------------------------------------------------
+|
+| IMPORTANT:
+| ----------
+| These are OFFLINE camera traps.
+|
+| The camera does not continuously send data to VanDrishti.
+|
+| Instead:
+|
+| Camera
+|   ↓
+| SD Card
+|   ↓
+| Forest Officer collects SD card
+|   ↓
+| Data imported into VanDrishti
+|
+| Therefore "status" here means deployment/operational status,
+| NOT internet connectivity.
+|
+|--------------------------------------------------------------------------
+*/
+
+cameras: [
+
+  {
+    id: "CAM-018",
+
+    name: "Camera Alpha",
+
+    model: "TrophyCam X42",
+
+    zone: "Moharli",
+
+    location: "Zone A · Moharli",
+
+    status: "deployed",
+
+    installationDate:
+      "2026-01-12",
+
+    lastCollectionDate:
+      "2026-08-15",
+
+    lastImportDate:
+      "2026-08-15",
+
+    /*
+     * Approximate number of images received
+     * from the most recent collection.
+     */
+    latestImageCount: 1248,
+
+    processedImages: 1201,
+
+    pendingImages: 47,
+
+    totalCollections: 16,
+
+    totalImagesCaptured: 18420,
+
+    tigerDetections: 428,
+
+    reidMatches: 361,
+
+    pendingReviews: 12,
+
+    batteryStatus: "Unknown",
+
+    notes:
+      "Camera trap deployed near a frequently used wildlife corridor.",
+  },
+
+
+  {
+    id: "CAM-042",
+
+    name: "Camera Beta",
+
+    model: "TrophyCam X42",
+
+    zone: "Navegaon",
+
+    location: "Zone B · Navegaon",
+
+    status: "deployed",
+
+    installationDate:
+      "2026-02-04",
+
+    lastCollectionDate:
+      "2026-08-15",
+
+    lastImportDate:
+      "2026-08-15",
+
+    latestImageCount: 982,
+
+    processedImages: 982,
+
+    pendingImages: 0,
+
+    totalCollections: 13,
+
+    totalImagesCaptured: 14328,
+
+    tigerDetections: 312,
+
+    reidMatches: 274,
+
+    pendingReviews: 4,
+
+    batteryStatus: "Unknown",
+
+    notes:
+      "Camera positioned near a water access route.",
+  },
+
+
+  {
+    id: "CAM-031",
+
+    name: "Camera Gamma",
+
+    model: "WildEye Pro",
+
+    zone: "Tadoba",
+
+    location: "Zone C · Tadoba",
+
+    status: "deployed",
+
+    installationDate:
+      "2026-03-18",
+
+    lastCollectionDate:
+      "2026-08-14",
+
+    lastImportDate:
+      "2026-08-14",
+
+    latestImageCount: 1104,
+
+    processedImages: 1050,
+
+    pendingImages: 54,
+
+    totalCollections: 11,
+
+    totalImagesCaptured: 12782,
+
+    tigerDetections: 289,
+
+    reidMatches: 221,
+
+    pendingReviews: 18,
+
+    batteryStatus: "Unknown",
+
+    notes:
+      "High-activity camera location.",
+  },
+
+
+  {
+    id: "CAM-057",
+
+    name: "Camera Delta",
+
+    model: "WildEye Pro",
+
+    zone: "Pangdi",
+
+    location: "Zone D · Pangdi",
+
+    status: "deployed",
+
+    installationDate:
+      "2026-04-02",
+
+    lastCollectionDate:
+      "2026-08-12",
+
+    lastImportDate:
+      "2026-08-12",
+
+    latestImageCount: 764,
+
+    processedImages: 764,
+
+    pendingImages: 0,
+
+    totalCollections: 8,
+
+    totalImagesCaptured: 8942,
+
+    tigerDetections: 176,
+
+    reidMatches: 142,
+
+    pendingReviews: 2,
+
+    batteryStatus: "Unknown",
+
+    notes:
+      "Located along a forest movement corridor.",
+  },
+
+
+  {
+    id: "CAM-072",
+
+    name: "Camera Echo",
+
+    model: "TrophyCam X30",
+
+    zone: "Moharli",
+
+    location: "Zone A · Moharli",
+
+    status: "collection_due",
+
+    installationDate:
+      "2026-05-14",
+
+    lastCollectionDate:
+      "2026-08-01",
+
+    lastImportDate:
+      "2026-08-01",
+
+    latestImageCount: 1532,
+
+    processedImages: 1532,
+
+    pendingImages: 0,
+
+    totalCollections: 6,
+
+    totalImagesCaptured: 6311,
+
+    tigerDetections: 98,
+
+    reidMatches: 76,
+
+    pendingReviews: 3,
+
+    batteryStatus: "Unknown",
+
+    notes:
+      "Collection is due based on the current field schedule.",
+  },
+
+],
+
+
+/*
+|--------------------------------------------------------------------------
+| CAMERA COLLECTIONS
+|--------------------------------------------------------------------------
+|
+| A collection represents one physical SD-card/data collection event.
+|
+| IMPORTANT:
+| A collection is NOT the same thing as a processing job.
+|
+| Collection:
+|   "Officer brought this SD card from CAM-018."
+|
+| Processing Job:
+|   "VanDrishti is processing the images from that SD card."
+|
+|--------------------------------------------------------------------------
+*/
+
+cameraCollections: [
+
+  {
+    id: "COL-2026-0815-018",
+
+    cameraId: "CAM-018",
+
+    collectedBy: "FO-1024",
+
+    collectionDate:
+      "2026-08-15T09:30:00Z",
+
+    uploadedAt:
+      "2026-08-15T11:10:00Z",
+
+    datasetName:
+      "Moharli_CAM018_Aug15",
+
+    sourceType: "zip",
+
+    fileName:
+      "CAM018_2026-08-15.zip",
+
+    fileSizeBytes:
+      15870000000,
+
+    imageCount: 1248,
+
+    validImages: 1243,
+
+    invalidImages: 3,
+
+    duplicateImages: 2,
+
+    uploadStatus: "completed",
+
+    processingStatus: "processing",
+
+    processingJobId:
+      "JOB-2026-0815-0042",
+  },
+
+
+  {
+    id: "COL-2026-0815-042",
+
+    cameraId: "CAM-042",
+
+    collectedBy: "FO-2048",
+
+    collectionDate:
+      "2026-08-15T08:15:00Z",
+
+    uploadedAt:
+      "2026-08-15T10:02:00Z",
+
+    datasetName:
+      "Navegaon_CAM042_Aug15",
+
+    sourceType: "zip",
+
+    fileName:
+      "CAM042_2026-08-15.zip",
+
+    fileSizeBytes:
+      11700000000,
+
+    imageCount: 982,
+
+    validImages: 982,
+
+    invalidImages: 0,
+
+    duplicateImages: 0,
+
+    uploadStatus: "completed",
+
+    processingStatus: "completed",
+
+    processingJobId:
+      "JOB-2026-0815-0041",
+  },
+
+
+  {
+    id: "COL-2026-0801-072",
+
+    cameraId: "CAM-072",
+
+    collectedBy: "FO-1024",
+
+    collectionDate:
+      "2026-08-01T10:20:00Z",
+
+    uploadedAt:
+      "2026-08-01T13:42:00Z",
+
+    datasetName:
+      "Moharli_CAM072_Aug01",
+
+    sourceType: "zip",
+
+    fileName:
+      "CAM072_Aug01.zip",
+
+    fileSizeBytes:
+      18600000000,
+
+    imageCount: 1532,
+
+    validImages: 1532,
+
+    invalidImages: 0,
+
+    duplicateImages: 0,
+
+    uploadStatus: "completed",
+
+    processingStatus: "completed",
+
+    processingJobId:
+      "JOB-2026-0801-0037",
+  },
+
+],
+
+
+/*
+|--------------------------------------------------------------------------
+| PROCESSING JOBS
+|--------------------------------------------------------------------------
+|
+| Represents the backend/ML processing pipeline.
+|
+|--------------------------------------------------------------------------
+*/
+
+processingJobs: [
+
+  {
+    id: "JOB-2026-0815-0042",
+
+    collectionId:
+      "COL-2026-0815-018",
+
+    cameraId: "CAM-018",
+
+    status: "processing",
+
+    totalImages: 1248,
+
+    processedImages: 842,
+
+    failedImages: 3,
+
+    tigerDetections: 42,
+
+    identifiedTigers: 31,
+
+    unknownDetections: 4,
+
+    pendingReviews: 7,
+
+    progress: 67.5,
+
+    startedAt:
+      "2026-08-15T11:15:00Z",
+
+    completedAt: null,
+
+    currentStage:
+      "Re-identification",
+
+  },
+
+
+  {
+    id: "JOB-2026-0815-0041",
+
+    collectionId:
+      "COL-2026-0815-042",
+
+    cameraId: "CAM-042",
+
+    status: "completed",
+
+    totalImages: 982,
+
+    processedImages: 982,
+
+    failedImages: 0,
+
+    tigerDetections: 31,
+
+    identifiedTigers: 25,
+
+    unknownDetections: 2,
+
+    pendingReviews: 4,
+
+    progress: 100,
+
+    startedAt:
+      "2026-08-15T10:10:00Z",
+
+    completedAt:
+      "2026-08-15T12:42:00Z",
+
+    currentStage:
+      "Completed",
+
+  },
+
+
+  {
+    id: "JOB-2026-0801-0037",
+
+    collectionId:
+      "COL-2026-0801-072",
+
+    cameraId: "CAM-072",
+
+    status: "completed",
+
+    totalImages: 1532,
+
+    processedImages: 1532,
+
+    failedImages: 0,
+
+    tigerDetections: 18,
+
+    identifiedTigers: 14,
+
+    unknownDetections: 1,
+
+    pendingReviews: 3,
+
+    progress: 100,
+
+    startedAt:
+      "2026-08-01T14:00:00Z",
+
+    completedAt:
+      "2026-08-01T17:25:00Z",
+
+    currentStage:
+      "Completed",
+
+  },
+
+],
+
+
+/*
+|--------------------------------------------------------------------------
+| CAMERA CAPTURES
+|--------------------------------------------------------------------------
+|
+| These are sample outputs from camera processing.
+|
+| Real implementation:
+|
+| Camera → Image → Detection → Re-ID → Result
+|
+|--------------------------------------------------------------------------
+*/
+
+cameraCaptures: [
+
+  {
+    id: "CAP-1001",
+
+    cameraId: "CAM-018",
+
+    collectionId:
+      "COL-2026-0815-018",
+
+    imageId: "IMG-2024",
+
+    capturedAt:
+      "2026-08-15T18:42:00Z",
+
+    detectionType:
+      "tiger",
+
+    tigerId:
+      "TGR-024",
+
+    confidence: 97,
+
+    reviewStatus:
+      "verified",
+
+  },
+
+
+  {
+    id: "CAP-1002",
+
+    cameraId: "CAM-018",
+
+    collectionId:
+      "COL-2026-0815-018",
+
+    imageId: "IMG-2025",
+
+    capturedAt:
+      "2026-08-15T17:31:00Z",
+
+    detectionType:
+      "tiger",
+
+    tigerId:
+      "TGR-006",
+
+    confidence: 96,
+
+    reviewStatus:
+      "verified",
+
+  },
+
+
+  {
+    id: "CAP-1003",
+
+    cameraId: "CAM-018",
+
+    collectionId:
+      "COL-2026-0815-018",
+
+    imageId: "IMG-2026",
+
+    capturedAt:
+      "2026-08-15T16:12:00Z",
+
+    detectionType:
+      "unknown_tiger",
+
+    tigerId: null,
+
+    confidence: 68,
+
+    reviewStatus:
+      "pending",
+
+  },
+
+],
+}
