@@ -71,7 +71,8 @@ import {
 // ============================================================================
 
 import Login from "../pages/Login/Login";
-
+import BlankReview from "../pages/Review/BlankReview";
+import TigerReidReview from "../pages/Review/TigerReidReview";
 
 // ============================================================================
 // LAYOUT
@@ -313,6 +314,15 @@ export default function AppRoutes() {
           path="/alerts"
           element={<Alerts />}
          />
+         <Route
+  path="/processing/review/images"
+  element={<BlankReview />}
+/>
+
+<Route
+  path="/processing/review/tiger-reid"
+  element={<TigerReidReview />}
+/>
 
         {/*
         |--------------------------------------------------------------------------
