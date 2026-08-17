@@ -23,7 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 
-# Data, media, and model artifacts
+# Data, media, and ML model binary artifacts
 crops/
 demo_sd_card/
-models/
+ml_models/
+public/models/
+public/crops/
+*.onnx
