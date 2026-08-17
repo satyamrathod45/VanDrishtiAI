@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Data, media, and model artifacts
+crops/
+demo_sd_card/
+models/
