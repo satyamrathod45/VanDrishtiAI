@@ -12,6 +12,7 @@
 import React, {
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -213,6 +214,7 @@ export default function SpatialIntelligence() {
   }, [allTigersData, selectedTigerId]);
 
   const selectedTiger = activeTigerItem?.tiger || spatialTigers[0];
+  const selectedTigerPalette = activeTigerItem?.palette || TIGER_PALETTES["P-017"];
   const homeRange = activeTigerItem?.homeRange;
   const rawDetectionsForSelectedTiger = activeTigerItem?.rawDetections || [];
   const groupedTigerStations = activeTigerItem?.stations || [];
@@ -222,6 +224,67 @@ export default function SpatialIntelligence() {
     if (selectedTigerId === "ALL") return allTigersData;
     return allTigersData.filter((d) => d.tiger.id === selectedTigerId);
   }, [allTigersData, selectedTigerId]);
+
+  // Aggregate population statistics across all resident tigers
+  const allTigersSummary = useMemo(() => {
+    let totalCaptures = 0;
+    let totalRaw = 0;
+    const uniqueStations = new Set();
+    let totalRangeArea = 0;
+    let totalCoreArea = 0;
+
+    allTigersData.forEach((d) => {
+      totalRaw += d.rawDetections?.length || 0;
+      totalCaptures += d.homeRange?.independentDetections?.length || 0;
+      totalRangeArea += d.homeRange?.range95?.area_km2 || 0;
+      totalCoreArea += d.homeRange?.core50?.area_km2 || 0;
+      d.stations.forEach((stn) => {
+        if (stn.camera_id) uniqueStations.add(stn.camera_id);
+      });
+    });
+
+    return {
+      totalTigers: allTigersData.length,
+      totalCaptures,
+      totalRaw,
+      totalStations: uniqueStations.size,
+      totalRangeArea: totalRangeArea.toFixed(1),
+      totalCoreArea: totalCoreArea.toFixed(1),
+    };
+  }, [allTigersData]);
+
+  // Aggregate diurnal/nocturnal activity across all resident tigers
+  const combinedActivityProfile = useMemo(() => {
+    let totalDetections = 0;
+    let dayDetections = 0;
+    let nightDetections = 0;
+
+    allTigersData.forEach((d) => {
+      if (d.homeRange?.independentDetections) {
+        d.homeRange.independentDetections.forEach((obs) => {
+          totalDetections++;
+          if (obs.isNight) nightDetections++;
+          else dayDetections++;
+        });
+      }
+    });
+
+    const dayPercent = totalDetections > 0 ? Math.round((dayDetections / totalDetections) * 100) : 0;
+    const nightPercent = totalDetections > 0 ? 100 - dayPercent : 0;
+
+    return {
+      dayPercent,
+      nightPercent,
+      peakActivityHour: "21:00 - 02:00",
+      totalDetections,
+    };
+  }, [allTigersData]);
+
+  // Active activity profile based on selection
+  const activeActivityProfile = useMemo(() => {
+    if (selectedTigerId === "ALL") return combinedActivityProfile;
+    return homeRange?.activityProfile || { dayPercent: 0, nightPercent: 100, peakActivityHour: "20:00 - 23:00" };
+  }, [selectedTigerId, combinedActivityProfile, homeRange]);
 
   // Compute active map bounding box covering all rendered tigers
   const activeBounds = useMemo(() => {
@@ -406,21 +469,31 @@ export default function SpatialIntelligence() {
                 <span className="h-2.5 w-2.5 rounded-full bg-[#c2410c]" />
                 <strong>50% Core:</strong>{" "}
                 <span className="font-mono text-zinc-900 font-bold">
-                  {homeRange?.core50?.area_km2 ? `${homeRange.core50.area_km2} km²` : "—"}
+                  {selectedTigerId === "ALL"
+                    ? `${allTigersSummary.totalCoreArea} km²`
+                    : homeRange?.core50?.area_km2
+                      ? `${homeRange.core50.area_km2} km²`
+                      : "—"}
                 </span>
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="h-2.5 w-2.5 rounded-full bg-[#e97813]/70 border border-[#e97813]" />
                 <strong>95% Home Range:</strong>{" "}
                 <span className="font-mono text-zinc-900 font-bold">
-                  {homeRange?.range95?.area_km2 ? `${homeRange.range95.area_km2} km²` : "—"}
+                  {selectedTigerId === "ALL"
+                    ? `${allTigersSummary.totalRangeArea} km²`
+                    : homeRange?.range95?.area_km2
+                      ? `${homeRange.range95.area_km2} km²`
+                      : "—"}
                 </span>
               </span>
               <span className="flex items-center gap-1.5">
                 <CheckCircle2 size={13} className="text-emerald-600" />
                 <strong>Independent Sightings:</strong>{" "}
                 <span className="font-mono text-zinc-900 font-bold">
-                  {homeRange?.independentDetections?.length || 0} / {rawDetectionsForSelectedTiger.length}
+                  {selectedTigerId === "ALL"
+                    ? `${allTigersSummary.totalCaptures} / ${allTigersSummary.totalRaw}`
+                    : `${homeRange?.independentDetections?.length || 0} / ${rawDetectionsForSelectedTiger.length}`}
                 </span>
               </span>
             </div>
@@ -541,28 +614,39 @@ export default function SpatialIntelligence() {
           ================================================== */}
           <section className="relative isolate z-0 overflow-hidden rounded-[26px] border border-zinc-200/90 bg-white shadow-sm">
             <MapContainer
-              center={homeRange.centroid || penchMapConfig.center}
+              center={homeRange?.centroid || penchMapConfig.center}
               zoom={penchMapConfig.defaultZoom}
-              minZoom={penchMapConfig.minZoom}
-              maxZoom={penchMapConfig.maxZoom}
-              maxBounds={penchMapConfig.bounds}
-              maxBoundsViscosity={1}
-              scrollWheelZoom
+              minZoom={1}
+              maxZoom={19}
+              zoomSnap={0.25}
+              zoomDelta={0.5}
+              wheelPxPerZoomLevel={80}
+              wheelDebounceTime={30}
+              scrollWheelZoom={true}
+              smoothWheelZoom={true}
+              touchZoom={true}
+              dragging={true}
+              inertia={true}
+              inertiaDeceleration={2000}
+              inertiaMaxSpeed={2000}
+              easeLinearity={0.15}
               className="h-[700px] w-full md:h-[780px]"
             >
-              {/* AUTO-CENTER CONTROLLER */}
+              {/* AUTO-CENTER CONTROLLER (RE-CENTERS ONLY ON TIGER SELECTION CHANGE) */}
               <MapCenterController
                 bounds={activeBounds}
                 centroid={selectedTigerId === "ALL" ? penchMapConfig.center : homeRange?.centroid}
+                triggerKey={selectedTigerId}
               />
 
-              {/* OFFLINE-FIRST PENCH RESERVE BASEMAP TILE LAYER */}
+              {/* OFFLINE-FIRST PENCH RESERVE BASEMAP TILE LAYER (WITH ONLINE SEAMLESS FALLBACK) */}
               <TileLayer
-                attribution="&copy; OpenStreetMap contributors &bull; Pench Tiger Reserve"
+                attribution="&copy; OpenStreetMap contributors &bull; CartoDB"
                 url="/tiles/{z}/{x}/{y}.png"
-                minZoom={penchMapConfig.minZoom}
-                maxZoom={penchMapConfig.maxZoom}
-                bounds={penchMapConfig.bounds}
+                errorTileUrl="https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
+                minZoom={1}
+                maxNativeZoom={13}
+                maxZoom={19}
               />
 
               {/* 2. PENCH RESERVE BOUNDARY OUTLINES (MINIMAL & UNCLUTTERED) */}
@@ -1026,56 +1110,143 @@ export default function SpatialIntelligence() {
               RIGHT SIDEBAR: SCIENTIFIC ANALYTICS & INSIGHTS
           ================================================== */}
           <aside className="space-y-4">
-            {/* TIGER OCCUPANCY METRIC CARD */}
-            <div className="rounded-[24px] border border-zinc-200/80 bg-white p-5 shadow-xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#e97813]/20 to-[#e97813]/5 text-xl border border-[#e97813]/20">
-                    🐅
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <h2 className="text-base font-extrabold text-zinc-900">{selectedTiger.id}</h2>
-                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-[#d86b0e] border border-amber-200/60">
-                        {selectedTiger.sex}
-                      </span>
+            {/* TIGER OCCUPANCY METRIC CARD (DYNAMIC: ALL POPULATION OR SINGLE TIGER) */}
+            {selectedTigerId === "ALL" ? (
+              <div className="rounded-[24px] border border-zinc-200/80 bg-white p-5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500/20 to-emerald-500/10 text-xl border border-amber-200/50">
+                      🐾
                     </div>
-                    <p className="text-[10px] text-zinc-400 font-medium">
-                      {selectedTiger.age} · Primary Zone: Core
-                    </p>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <h2 className="text-base font-extrabold text-zinc-900">Pench Resident Population</h2>
+                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-700 border border-zinc-200">
+                          {allTigersSummary.totalTigers} Tigers
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-zinc-400 font-medium">
+                        Multi-Territory Kernel Density Utilization
+                      </p>
+                    </div>
                   </div>
+
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 border border-emerald-200/60">
+                    Active GIS
+                  </span>
                 </div>
 
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 border border-emerald-200/60">
-                  {selectedTiger.status}
-                </span>
-              </div>
+                {/* CALCULATED GIS OCCUPANCY STATS ACROSS ALL TIGERS */}
+                <div className="mt-4 grid grid-cols-2 gap-2.5">
+                  <Metric
+                    label="Combined 50% Core"
+                    value={`${allTigersSummary.totalCoreArea} km²`}
+                    badge="Total Core"
+                    highlight
+                  />
+                  <Metric
+                    label="Combined 95% Range"
+                    value={`${allTigersSummary.totalRangeArea} km²`}
+                    badge="Landscape"
+                  />
+                  <Metric
+                    label="Active Camera Traps"
+                    value={`${allTigersSummary.totalStations} Stations`}
+                    subtext="Deployment coverage"
+                  />
+                  <Metric
+                    label="Total Sightings"
+                    value={`${allTigersSummary.totalCaptures} Captures`}
+                    subtext={`From ${allTigersSummary.totalRaw} detections`}
+                  />
+                </div>
 
-              {/* CALCULATED GIS OCCUPANCY STATS */}
-              <div className="mt-4 grid grid-cols-2 gap-2.5">
-                <Metric
-                  label="50% Core Area"
-                  value={homeRange?.core50?.area_km2 ? `${homeRange.core50.area_km2} km²` : "—"}
-                  badge="Core UD"
-                  highlight
-                />
-                <Metric
-                  label="95% Home Range"
-                  value={homeRange?.range95?.area_km2 ? `${homeRange.range95.area_km2} km²` : "—"}
-                  badge="Territory"
-                />
-                <Metric
-                  label="Independent Sightings"
-                  value={`${homeRange?.independentDetections?.length || 0}`}
-                  subtext={`Filtered from ${rawDetectionsForSelectedTiger.length} raw`}
-                />
-                <Metric
-                  label="Autocorrelation Pruned"
-                  value={`${homeRange?.activityProfile?.filterRate || 0}%`}
-                  subtext="Burst pruned"
-                />
+                {/* QUICK TIGER SELECTOR PILLS */}
+                <div className="mt-4 pt-3.5 border-t border-zinc-100 flex items-center justify-between gap-1.5">
+                  {allTigersData.map((d) => (
+                    <button
+                      key={d.tiger.id}
+                      onClick={() => setSelectedTigerId(d.tiger.id)}
+                      className="flex-1 rounded-xl p-2 text-left border border-zinc-200/70 hover:border-zinc-300 bg-zinc-50/70 hover:bg-zinc-100/70 transition cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className="h-2 w-2 rounded-full"
+                          style={{ backgroundColor: d.palette.rangeColor }}
+                        />
+                        <span className="text-xs font-extrabold text-zinc-900">{d.tiger.id}</span>
+                      </div>
+                      <p className="text-[9px] text-zinc-500 font-mono mt-0.5">
+                        {d.homeRange?.range95?.area_km2 || "—"} km²
+                      </p>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="rounded-[24px] border border-zinc-200/80 bg-white p-5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="flex h-11 w-11 items-center justify-center rounded-2xl text-xl border"
+                      style={{
+                        backgroundColor: `${selectedTigerPalette.rangeColor}14`,
+                        borderColor: `${selectedTigerPalette.rangeColor}30`,
+                      }}
+                    >
+                      🐅
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <h2 className="text-base font-extrabold text-zinc-900">{selectedTiger.id}</h2>
+                        <span
+                          className="rounded-full px-2 py-0.5 text-[10px] font-bold border"
+                          style={{
+                            backgroundColor: `${selectedTigerPalette.rangeColor}12`,
+                            color: selectedTigerPalette.coreColor,
+                            borderColor: `${selectedTigerPalette.rangeColor}25`,
+                          }}
+                        >
+                          {selectedTiger.sex}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-zinc-400 font-medium">
+                        {selectedTiger.age} · Primary Zone: Core
+                      </p>
+                    </div>
+                  </div>
+
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 border border-emerald-200/60">
+                    {selectedTiger.status}
+                  </span>
+                </div>
+
+                {/* CALCULATED GIS OCCUPANCY STATS */}
+                <div className="mt-4 grid grid-cols-2 gap-2.5">
+                  <Metric
+                    label="50% Core Area"
+                    value={homeRange?.core50?.area_km2 ? `${homeRange.core50.area_km2} km²` : "—"}
+                    badge="Core UD"
+                    highlight
+                  />
+                  <Metric
+                    label="95% Home Range"
+                    value={homeRange?.range95?.area_km2 ? `${homeRange.range95.area_km2} km²` : "—"}
+                    badge="Territory"
+                  />
+                  <Metric
+                    label="Independent Sightings"
+                    value={`${homeRange?.independentDetections?.length || 0}`}
+                    subtext={`Filtered from ${rawDetectionsForSelectedTiger.length} raw`}
+                  />
+                  <Metric
+                    label="Autocorrelation Pruned"
+                    value={`${homeRange?.activityProfile?.filterRate || 0}%`}
+                    subtext="Burst pruned"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* DIURNAL ACTIVITY BREAKDOWN */}
             <div className="rounded-[24px] border border-zinc-200/80 bg-white p-5 shadow-xs">
@@ -1092,28 +1263,35 @@ export default function SpatialIntelligence() {
               <div className="mt-3.5">
                 <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
                   <span className="flex items-center gap-1 text-amber-600">
-                    <SunMedium size={12} /> Day: {homeRange?.activityProfile?.dayPercent || 0}%
+                    <SunMedium size={12} /> Day: {activeActivityProfile.dayPercent}%
                   </span>
                   <span className="flex items-center gap-1 text-indigo-600">
-                    <Moon size={12} /> Night: {homeRange?.activityProfile?.nightPercent || 0}%
+                    <Moon size={12} /> Night: {activeActivityProfile.nightPercent}%
                   </span>
                 </div>
-                {/* DUAL PROGRESS BAR */}
+                {/* DUAL PROGRESS BAR WITH EXACT 0% HANDLING */}
                 <div className="h-2.5 w-full rounded-full bg-zinc-100 overflow-hidden flex">
-                  <div
-                    className="h-full bg-amber-400 transition-all duration-500"
-                    style={{ width: `${homeRange?.activityProfile?.dayPercent || 50}%` }}
-                  />
-                  <div
-                    className="h-full bg-indigo-500 transition-all duration-500"
-                    style={{ width: `${homeRange?.activityProfile?.nightPercent || 50}%` }}
-                  />
+                  {activeActivityProfile.dayPercent > 0 && (
+                    <div
+                      className="h-full bg-amber-400 transition-all duration-500"
+                      style={{ width: `${activeActivityProfile.dayPercent}%` }}
+                    />
+                  )}
+                  {activeActivityProfile.nightPercent > 0 && (
+                    <div
+                      className="h-full bg-indigo-500 transition-all duration-500"
+                      style={{ width: `${activeActivityProfile.nightPercent}%` }}
+                    />
+                  )}
+                  {activeActivityProfile.dayPercent === 0 && activeActivityProfile.nightPercent === 0 && (
+                    <div className="h-full w-full bg-zinc-200" />
+                  )}
                 </div>
 
                 <div className="mt-3 flex items-center justify-between rounded-xl bg-zinc-50 px-3 py-2 text-[10px]">
                   <span className="text-zinc-500 font-medium">Peak Activity Window:</span>
                   <span className="font-bold text-zinc-900 font-mono">
-                    {homeRange?.activityProfile?.peakActivityHour || "20:00 - 23:00"}
+                    {activeActivityProfile.peakActivityHour}
                   </span>
                 </div>
               </div>
@@ -1218,16 +1396,26 @@ export default function SpatialIntelligence() {
 // MAP AUTO-CENTER & BOUNDS CONTROLLER
 // ============================================================
 
-function MapCenterController({ bounds, centroid }) {
+function MapCenterController({ bounds, centroid, triggerKey }) {
   const map = useMap();
+  const prevKey = useRef(null);
+  const boundsRef = useRef(bounds);
+  const centroidRef = useRef(centroid);
+  boundsRef.current = bounds;
+  centroidRef.current = centroid;
 
   useEffect(() => {
-    if (bounds && bounds.length === 2) {
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 13, duration: 1 });
-    } else if (centroid) {
-      map.flyTo(centroid, 12, { duration: 1 });
+    if (prevKey.current !== triggerKey) {
+      prevKey.current = triggerKey;
+      const b = boundsRef.current;
+      const c = centroidRef.current;
+      if (b && b.length === 2) {
+        map.fitBounds(b, { padding: [50, 50], maxZoom: 13, duration: 0.8 });
+      } else if (c) {
+        map.flyTo(c, 11, { duration: 0.8 });
+      }
     }
-  }, [centroid, bounds, map]);
+  }, [triggerKey, map]);
 
   return null;
 }

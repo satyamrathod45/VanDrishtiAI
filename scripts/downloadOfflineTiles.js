@@ -15,15 +15,15 @@ const __dirname = path.dirname(__filename);
 
 const TILES_DIR = path.join(__dirname, "..", "public", "tiles");
 
-// Pench Tiger Reserve Exact Bounds (M.P. & M.H.)
+// Pench Tiger Reserve Landscape Wide Buffer Bounds (M.P. & M.H.)
 const PENCH_BOUNDS = {
-  south: 21.45,
-  north: 21.92,
-  west: 79.02,
-  east: 79.65,
+  south: 21.30,
+  north: 22.05,
+  west: 78.85,
+  east: 79.80,
 };
 
-const ZOOM_LEVELS = [10, 11, 12, 13];
+const ZOOM_LEVELS = [9, 10, 11, 12, 13];
 
 // CartoDB Voyager (High-speed OpenStreetMap raster tiles with forest/terrain styling)
 const SUBDOMAINS = ["a", "b", "c", "d"];
