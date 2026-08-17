@@ -2,6 +2,7 @@ import {
   Activity,
   AlertTriangle,
   Camera,
+  Map,
 } from "lucide-react";
 
 import {
@@ -11,21 +12,20 @@ import {
 
 
 // ============================================================
-// VanDrishti Bottom Navigation
+// VanDrishti Primary Navigation
 // ============================================================
 //
-// IMPORTANT:
-// Review pages are NOT primary navigation destinations.
+// Primary destinations:
 //
-// The two human-review workflows are:
+// Overview
+// Spatial Intelligence
+// Tigers
+// Cameras
+// Alerts
 //
-// /processing/review/image
-// /processing/review/tiger-id
+// Human review pages are intentionally NOT included here.
 //
-// They are accessed through the Processing workflow.
-//
-// This keeps the bottom navigation focused on the
-// Forest Officer's primary destinations.
+// Review workflows are entered from Processing / task cards.
 // ============================================================
 
 const navigationItems = [
@@ -34,6 +34,12 @@ const navigationItems = [
     label: "Overview",
     path: "/overview",
     icon: Activity,
+  },
+
+  {
+    label: "Spatial",
+    path: "/spatial",
+    icon: Map,
   },
 
   {
@@ -101,17 +107,15 @@ export default function BottomNavigation() {
 
 
             // ==================================================
-            // ACTIVE STATE
+            // ACTIVE NAVIGATION
             // ==================================================
             //
-            // Tiger Profile:
-            //
             // /tigers/TGR-024
+            // should keep Tigers highlighted.
             //
-            // should still keep "Tigers" active.
-            //
-            // Processing and Review pages intentionally
-            // do NOT activate any bottom-nav item.
+            // /spatial
+            // and any future /spatial/* route should keep
+            // Spatial highlighted.
             // ==================================================
 
             const isActive =
@@ -119,8 +123,12 @@ export default function BottomNavigation() {
                 ? location.pathname.startsWith(
                     "/tigers"
                   )
-                : location.pathname ===
-                  item.path;
+                : item.path === "/spatial"
+                  ? location.pathname.startsWith(
+                      "/spatial"
+                    )
+                  : location.pathname ===
+                    item.path;
 
 
             return (
@@ -137,7 +145,7 @@ export default function BottomNavigation() {
                   group
                   relative
                   flex
-                  min-w-[62px]
+                  min-w-[58px]
                   flex-col
                   items-center
                   justify-center
@@ -148,7 +156,7 @@ export default function BottomNavigation() {
                   transition-all
                   duration-200
 
-                  sm:min-w-[78px]
+                  sm:min-w-[76px]
 
                   ${
                     isActive
@@ -208,9 +216,8 @@ export default function BottomNavigation() {
 // TIGER ICON
 // ============================================================
 //
-// lucide-react doesn't provide a Tiger icon,
-// so we use the emoji instead of importing a non-existent
-// "Tiger" icon from lucide-react.
+// lucide-react does not provide a Tiger icon.
+// Keep this local instead of importing a non-existent icon.
 // ============================================================
 
 function TigerIcon() {

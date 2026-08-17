@@ -94,6 +94,7 @@ import TigerProfile from "../pages/Tigers/TigerProfile";
 import CameraDetails from "../pages/Camera/CameraDetails";
 import Cameras from "../pages/Camera/Cameras";
 import Alerts from "../pages/Alerts/Alerts";
+import SpatialIntelligence from "../pages/Spatial/SpatialIntelligence";
 // ============================================================================
 // PROTECTED ROUTE
 // ============================================================================
@@ -323,6 +324,12 @@ export default function AppRoutes() {
   path="/processing/review/tiger-reid"
   element={<TigerReidReview />}
 />
+
+<Route
+    path="/spatial"
+    element={<SpatialIntelligence />}
+  />
+
 
         {/*
         |--------------------------------------------------------------------------
