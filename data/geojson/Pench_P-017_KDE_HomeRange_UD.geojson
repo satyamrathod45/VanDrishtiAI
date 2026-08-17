@@ -1,0 +1,346 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "generator": "VanDrishti AI Spatial Intelligence Engine",
+    "tiger_id": "P-017",
+    "bandwidth_m": 500,
+    "generated_at": "2026-08-17T18:53:05.147Z",
+    "core_area_km2": 135.74,
+    "total_range_km2": 217.93,
+    "unique_camera_stations": 6,
+    "total_detections": 16
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              79.13644279922534,
+              21.634724864056817
+            ],
+            [
+              79.13633988662653,
+              21.642744028657106
+            ],
+            [
+              79.1387470011987,
+              21.6459791472715
+            ],
+            [
+              79.14117476000996,
+              21.647610402042627
+            ],
+            [
+              79.14360257482274,
+              21.649241624897595
+            ],
+            [
+              79.34117896242645,
+              21.717104325786007
+            ],
+            [
+              79.34362872798181,
+              21.717128837788476
+            ],
+            [
+              79.346078496996,
+              21.717153313600722
+            ],
+            [
+              79.34852826946387,
+              21.717177753222497
+            ],
+            [
+              79.35101461393555,
+              21.713994150217115
+            ],
+            [
+              79.35350084656622,
+              21.71081050180902
+            ],
+            [
+              79.37347670543951,
+              21.677319542772743
+            ],
+            [
+              79.37349470467088,
+              21.67571551391175
+            ],
+            [
+              79.37351270223625,
+              21.674111484726698
+            ],
+            [
+              79.37353069813577,
+              21.67250745521759
+            ],
+            [
+              79.37354869236945,
+              21.670903425384463
+            ],
+            [
+              79.37356668493743,
+              21.669299395227327
+            ],
+            [
+              79.3711537254522,
+              21.666067318762018
+            ],
+            [
+              79.32759079557793,
+              21.62071693177654
+            ],
+            [
+              79.32516115853879,
+              21.619088286404565
+            ],
+            [
+              79.24256730767651,
+              21.565299116146665
+            ],
+            [
+              79.23522608840786,
+              21.56522150836673
+            ],
+            [
+              79.23029301253739,
+              21.568377451486537
+            ],
+            [
+              79.13893200087301,
+              21.631544630883138
+            ],
+            [
+              79.13644279922534,
+              21.634724864056817
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "tiger_id": "P-017",
+        "type": "range",
+        "name": "95% Home Range",
+        "utilization": 95,
+        "area_km2": 217.93,
+        "bandwidth_m": 500,
+        "independent_detections": 16
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              79.14376662495103,
+              21.636410914542935
+            ],
+            [
+              79.14127743113079,
+              21.639591220033186
+            ],
+            [
+              79.14368461508317,
+              21.64282627234337
+            ],
+            [
+              79.14611238543962,
+              21.64445745568216
+            ],
+            [
+              79.2462818162337,
+              21.663190756905962
+            ],
+            [
+              79.36366210031896,
+              21.678827231351157
+            ],
+            [
+              79.36612932839029,
+              21.677247347856174
+            ],
+            [
+              79.36861455575519,
+              21.674063398721326
+            ],
+            [
+              79.36621971390639,
+              21.669227229656883
+            ],
+            [
+              79.3250687381629,
+              21.627108286123054
+            ],
+            [
+              79.32020937860749,
+              21.623850881562692
+            ],
+            [
+              79.24004275796283,
+              21.5716890376798
+            ],
+            [
+              79.237595577283,
+              21.57166315997176
+            ],
+            [
+              79.14376662495103,
+              21.636410914542935
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "tiger_id": "P-017",
+        "type": "core",
+        "name": "50% Core Territory",
+        "utilization": 50,
+        "area_km2": 135.74,
+        "bandwidth_m": 500,
+        "independent_detections": 16
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "tiger_id": "P-017",
+        "type": "centroid",
+        "latitude": 21.644635,
+        "longitude": 79.268709,
+        "description": "Probability-weighted activity centroid"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.268709,
+          21.644635
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "tiger_id": "P-017",
+        "type": "camera_station_observation",
+        "camera_id": "CAM-127",
+        "detection_count": 2,
+        "latest_timestamp": "2026-08-15T18:42:00",
+        "confidence": 94,
+        "diel_rhythm": "Nocturnal",
+        "badge": "2 captures"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.2391,
+          21.5748
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "tiger_id": "P-017",
+        "type": "camera_station_observation",
+        "camera_id": "CAM-132",
+        "detection_count": 3,
+        "latest_timestamp": "2026-08-16T03:17:00",
+        "confidence": 95,
+        "diel_rhythm": "Nocturnal",
+        "badge": "3 captures"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.1472,
+          21.6394
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "tiger_id": "P-017",
+        "type": "camera_station_observation",
+        "camera_id": "CAM-143",
+        "detection_count": 4,
+        "latest_timestamp": "2026-08-22T19:50:00",
+        "confidence": 95,
+        "diel_rhythm": "Nocturnal",
+        "badge": "4 captures"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.2485,
+          21.6578
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "tiger_id": "P-017",
+        "type": "camera_station_observation",
+        "camera_id": "CAM-152",
+        "detection_count": 3,
+        "latest_timestamp": "2026-08-20T21:15:00",
+        "confidence": 92,
+        "diel_rhythm": "Nocturnal",
+        "badge": "3 captures"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.3194,
+          21.6287
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "tiger_id": "P-017",
+        "type": "camera_station_observation",
+        "camera_id": "CAM-155",
+        "detection_count": 3,
+        "latest_timestamp": "2026-08-17T04:21:00",
+        "confidence": 96,
+        "diel_rhythm": "Nocturnal",
+        "badge": "3 captures"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.3627,
+          21.6734
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "tiger_id": "P-017",
+        "type": "camera_station_observation",
+        "camera_id": "CAM-162",
+        "detection_count": 1,
+        "latest_timestamp": "2026-08-19T00:30:00",
+        "confidence": 90,
+        "diel_rhythm": "Nocturnal",
+        "badge": "1 capture"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.3441,
+          21.7092
+        ]
+      }
+    }
+  ]
+}

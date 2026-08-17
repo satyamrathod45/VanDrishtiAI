@@ -79,7 +79,7 @@ export default function BottomNavigation() {
         fixed
         bottom-5
         left-1/2
-        z-50
+        z-[9999]
         -translate-x-1/2
       "
     >
