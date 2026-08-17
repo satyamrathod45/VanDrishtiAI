@@ -5,14 +5,16 @@ import {
   AlertTriangle,
   ArrowUpRight,
   Camera,
-  ChevronRight,
+  CheckCircle2,
   CircleDot,
   Eye,
+  Image as ImageIcon,
   MapPin,
+  PackageCheck,
   ScanLine,
   ShieldCheck,
-  Wifi,
-  WifiOff,
+  Upload,
+  UserRound,
 } from "lucide-react";
 
 import { overviewService } from "../../services/overviewService";
@@ -21,96 +23,249 @@ import BottomNavigation from "../../components/navigation/BottomNavigation";
 
 
 // ============================================================
-// MAIN OVERVIEW
+// VanDrishti Overview
 // ============================================================
+//
+// IMPORTANT FOR BACKEND DEVELOPERS
+//
+// This page does NOT communicate directly with mockApi.
+//
+// Frontend flow:
+//
+// Overview.jsx
+//      ↓
+// overviewService
+//      ↓
+// api.js
+//      ↓
+// mockApi.js
+//      ↓
+// Real Backend API
+//
+// When the real backend is ready, the UI should not need to
+// change. Only the service/API layer should change.
+//
+// ============================================================
+
 
 export default function Overview() {
   const { officer } = useAuth();
 
-  const [overview, setOverview] =
-    useState(null);
+  // ----------------------------------------------------------
+  // API DATA
+  // ----------------------------------------------------------
 
-  const [loading, setLoading] =
-    useState(true);
+  const [overview, setOverview] = useState(null);
 
-  const [error, setError] =
-    useState("");
+  // ----------------------------------------------------------
+  // UI STATE
+  // ----------------------------------------------------------
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // ==========================================================
+  // LOAD OVERVIEW
+  // ==========================================================
 
   useEffect(() => {
+    let mounted = true;
+
     const loadOverview = async () => {
       try {
         setLoading(true);
+        setError("");
 
         const response =
           await overviewService.getOverview();
 
-        if (response.success) {
+        if (!mounted) return;
+
+        if (response?.success) {
           setOverview(response.data);
+        } else {
+          setError(
+            "Unable to load VanDrishti overview."
+          );
         }
       } catch (err) {
         console.error(
-          "Failed to load overview:",
+          "Failed to load VanDrishti overview:",
           err
         );
 
-        setError(
-          "Unable to load VanDrishti overview."
-        );
+        if (mounted) {
+          setError(
+            "Unable to load VanDrishti overview."
+          );
+        }
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadOverview();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // ----------------------------------------------------------
-  // LOADING
-  // ----------------------------------------------------------
+  // ==========================================================
+  // LOADING STATE
+  // ==========================================================
 
   if (loading) {
     return <OverviewSkeleton />;
   }
 
-  // ----------------------------------------------------------
-  // ERROR
-  // ----------------------------------------------------------
+  // ==========================================================
+  // ERROR STATE
+  // ==========================================================
 
   if (error || !overview) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#f7f7f5] px-5">
+        <div className="w-full max-w-sm rounded-[28px] bg-white p-8 text-center shadow-[0_15px_50px_rgba(0,0,0,0.06)]">
 
-        <div className="rounded-[28px] bg-white px-8 py-7 text-center shadow-[0_15px_50px_rgba(0,0,0,0.05)]">
-
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#fff3e8]">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fff1e6]">
             <AlertTriangle
-              size={20}
+              size={22}
               className="text-[#e97813]"
             />
           </div>
 
-          <h2 className="mt-4 text-[16px] font-semibold">
+          <h2 className="mt-5 text-lg font-semibold text-[#202020]">
             Something went wrong
           </h2>
 
-          <p className="mt-1 text-[12px] text-[#999]">
-            {error}
+          <p className="mt-2 text-xs leading-5 text-[#999]">
+            {error ||
+              "VanDrishti overview data is unavailable."}
           </p>
 
         </div>
-
       </main>
     );
   }
 
-  const {
-    statistics,
-    activity,
-    recentSightings,
-    intelligence,
-    zones,
-    system,
-  } = overview;
+  // ==========================================================
+  // SAFE DATA EXTRACTION
+  // ==========================================================
+  //
+  // IMPORTANT:
+  // Every array gets a fallback [].
+  //
+  // This prevents errors such as:
+  //
+  // Cannot read properties of undefined (reading 'map')
+  //
+  // which can happen when backend data is incomplete.
+  //
+  // ==========================================================
+
+  const statistics =
+    overview.statistics || {};
+
+  const activity =
+    Array.isArray(overview.activity)
+      ? overview.activity
+      : [];
+
+  const recentSightings =
+    Array.isArray(overview.recentSightings)
+      ? overview.recentSightings
+      : [];
+
+  const zones =
+    Array.isArray(overview.zones)
+      ? overview.zones
+      : [];
+
+  const intelligence =
+    overview.intelligence || {};
+
+  const system =
+    overview.system || {};
+
+  // ==========================================================
+  // SAFE STATISTICS
+  // ==========================================================
+
+  const totalTigers =
+    Number(statistics.totalTigers || 0);
+
+  const identifiedTigers =
+    Number(statistics.identifiedTigers || 0);
+
+  const unknownTigers =
+    Number(statistics.unknownTigers || 0);
+
+  const totalSightings =
+    Number(statistics.totalSightings || 0);
+
+  const todaysSightings =
+    Number(statistics.todaysSightings || 0);
+
+  const totalCameras =
+    Number(statistics.totalCameras || 0);
+
+  const deployedCameras =
+    Number(statistics.deployedCameras || 0);
+
+  const collectionDue =
+    Number(statistics.collectionDue || 0);
+
+  const pendingProcessingImages =
+    Number(
+      statistics.pendingProcessingImages || 0
+    );
+
+  const pendingReviews =
+    Number(
+      statistics.pendingReviews ||
+      intelligence.pendingReviews ||
+      0
+    );
+
+  const activeAlerts =
+    Number(
+      statistics.activeAlerts ||
+      intelligence.alerts ||
+      0
+    );
+
+  // ==========================================================
+  // CAMERA COLLECTION STATUS
+  // ==========================================================
+
+  const deployedPercentage =
+    totalCameras > 0
+      ? Math.round(
+          (deployedCameras /
+            totalCameras) *
+            100
+        )
+      : 0;
+
+  // ==========================================================
+  // OFFICER NAME
+  // ==========================================================
+
+  const officerName =
+    officer?.name ||
+    officer?.fullName ||
+    officer?.officerName ||
+    "Forest Officer";
+
+  // ==========================================================
+  // SYSTEM STATUS
+  // ==========================================================
+
+  const systemOperational =
+    system.status === "operational";
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#f7f7f5] px-4 pb-32 pt-6 text-[#202020] sm:px-6 lg:px-8">
@@ -121,346 +276,369 @@ export default function Overview() {
 
       <div className="pointer-events-none fixed -left-52 -top-52 h-[550px] w-[550px] rounded-full bg-[#e97813]/[0.025] blur-3xl" />
 
-      <div className="pointer-events-none fixed -bottom-60 -right-52 h-[650px] w-[650px] rounded-full bg-[#171717]/[0.018] blur-3xl" />
+      <div className="pointer-events-none fixed -bottom-60 -right-52 h-[650px] w-[650px] rounded-full bg-[#171717]/[0.02] blur-3xl" />
 
-      {/* ================================================== */}
-      {/* HEADER */}
-      {/* ================================================== */}
+      <div className="relative mx-auto max-w-[1450px]">
 
-      <header className="relative z-10 mx-auto flex max-w-[1450px] items-center justify-between px-1 pb-7">
+        {/* ================================================== */}
+        {/* HEADER */}
+        {/* ================================================== */}
 
-        {/* Brand */}
-
-        <div className="flex items-center gap-3">
-
-          <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-[#171717] shadow-[0_7px_18px_rgba(0,0,0,0.09)]">
-
-            <div className="relative">
-
-              <ScanLine
-                size={20}
-                strokeWidth={1.8}
-                className="text-[#ef7d16]"
-              />
-
-              <span className="absolute left-[6px] top-[6px] text-[8px]">
-                🐅
-              </span>
-
-            </div>
-
-          </div>
+        <header className="flex items-center justify-between">
 
           <div>
 
-            <h1 className="text-[20px] font-bold tracking-[-0.8px]">
-              Van
-              <span className="text-[#e97813]">
-                Drishti
-              </span>
+            <div className="flex items-center gap-2">
+
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#171717]">
+                <ScanLine
+                  size={17}
+                  className="text-[#ef7d16]"
+                />
+              </div>
+
+              <div>
+                <p className="text-[10px] font-bold tracking-[1.5px] text-[#e97813]">
+                  VANDRISHTI
+                </p>
+
+                <p className="text-[9px] text-[#999]">
+                  Tiger Intelligence System
+                </p>
+              </div>
+
+            </div>
+
+            <h1 className="mt-6 text-[28px] font-semibold tracking-[-1.3px] sm:text-[34px]">
+              Field overview
             </h1>
 
-            <p className="mt-0.5 text-[9px] text-[#999]">
-              Forest Intelligence Command Center
+            <p className="mt-1 text-[11px] text-[#999]">
+              Welcome back, {officerName}
             </p>
 
           </div>
 
-        </div>
+          {/* SYSTEM STATUS */}
 
-        {/* Right side */}
+          <div className="hidden items-center gap-2 rounded-full bg-white px-3 py-2 shadow-[0_6px_25px_rgba(0,0,0,0.04)] sm:flex">
 
-        <div className="flex items-center gap-3">
+            <span
+              className={`h-2 w-2 rounded-full ${
+                systemOperational
+                  ? "bg-[#62a36b]"
+                  : "bg-[#e97813]"
+              }`}
+            />
 
-          {/* Monitoring status */}
-
-          <div className="hidden items-center gap-2 rounded-full border border-[#e7e7e5] bg-white px-4 py-2.5 sm:flex">
-
-            <span className="relative flex h-2 w-2">
-
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#63a66a] opacity-50" />
-
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#63a66a]" />
-
-            </span>
-
-            <span className="text-[10px] font-medium text-[#666]">
-              Monitoring active
+            <span className="text-[9px] font-semibold text-[#666]">
+              {systemOperational
+                ? "SYSTEM OPERATIONAL"
+                : "SYSTEM ATTENTION"}
             </span>
 
           </div>
 
-          {/* Officer */}
+        </header>
 
-          <div className="flex items-center gap-2.5 rounded-full bg-white py-1.5 pl-1.5 pr-4 shadow-[0_5px_20px_rgba(0,0,0,0.035)]">
 
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#171717] text-[9px] font-bold text-white">
+        {/* ================================================== */}
+        {/* FIELD SNAPSHOT */}
+        {/* ================================================== */}
 
-              {officer?.name
-                ? officer.name
-                    .split(" ")
-                    .map(
-                      (part) =>
-                        part[0]
-                    )
-                    .join("")
-                    .slice(0, 2)
-                : "FO"}
+        <section className="mt-7">
 
-            </div>
+          <div className="mb-4 flex items-end justify-between">
 
-            <div className="hidden sm:block">
-
-              <p className="text-[10px] font-semibold">
-                {officer?.name ||
-                  "Forest Officer"}
+            <div>
+              <p className="text-[9px] font-semibold tracking-[1px] text-[#999]">
+                FIELD SNAPSHOT
               </p>
 
-              <p className="text-[8px] text-[#999]">
-                {officer?.id ||
-                  "FO-1024"}
-              </p>
-
+              <h2 className="mt-1 text-[18px] font-semibold">
+                What needs attention
+              </h2>
             </div>
+
+            <span className="text-[9px] text-[#aaa]">
+              Updated recently
+            </span>
 
           </div>
 
-        </div>
 
-      </header>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
 
-      {/* ================================================== */}
-      {/* CONTENT */}
-      {/* ================================================== */}
+            <StatCard
+              icon={Eye}
+              label="Tiger sightings"
+              value={todaysSightings}
+              subtext="detected today"
+              accent
+            />
 
-      <div className="relative z-10 mx-auto max-w-[1450px]">
+            <StatCard
+              icon={UserRound}
+              label="Identified tigers"
+              value={identifiedTigers}
+              subtext={`${totalTigers} total registered`}
+            />
+
+            <StatCard
+              icon={Camera}
+              label="Camera traps"
+              value={totalCameras}
+              subtext={`${deployedCameras} deployed`}
+            />
+
+            <StatCard
+              icon={ImageIcon}
+              label="Images pending"
+              value={pendingProcessingImages}
+              subtext="awaiting processing"
+            />
+
+          </div>
+
+        </section>
+
 
         {/* ================================================== */}
-        {/* STATISTICS */}
+        {/* ATTENTION STRIP */}
         {/* ================================================== */}
 
-        <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <section className="mt-5 grid gap-3 md:grid-cols-3">
 
-          <StatCard
-            icon={TigerIcon}
-            label="Monitored Tigers"
-            value={
-              statistics.totalTigers
+          <AttentionCard
+            icon={PackageCheck}
+            label="Collection due"
+            value={collectionDue}
+            description="Camera traps require SD card collection."
+            tone={
+              collectionDue > 0
+                ? "orange"
+                : "normal"
             }
-            subtext={`${statistics.identifiedTigers} identified`}
-            accent
           />
 
-          <StatCard
-            icon={Eye}
-            label="Today's Sightings"
-            value={
-              statistics.todaysSightings
+          <AttentionCard
+            icon={CircleDot}
+            label="Pending review"
+            value={pendingReviews}
+            description="AI detections require officer verification."
+            tone={
+              pendingReviews > 0
+                ? "orange"
+                : "normal"
             }
-            subtext={`${statistics.totalSightings.toLocaleString()} total observations`}
           />
 
-          <StatCard
-            icon={Camera}
-            label="Camera Network"
-            value={
-              statistics.totalCameras
+          <AttentionCard
+            icon={AlertTriangle}
+            label="Active alerts"
+            value={activeAlerts}
+            description="Field events requiring attention."
+            tone={
+              activeAlerts > 0
+                ? "orange"
+                : "normal"
             }
-            subtext={`${statistics.onlineCameras} cameras online`}
-          />
-
-          <StatCard
-            icon={ShieldCheck}
-            label="Re-ID Accuracy"
-            value={`${intelligence.detectionAccuracy}%`}
-            subtext="Detection confidence"
           />
 
         </section>
 
+
         {/* ================================================== */}
-        {/* MAIN GRID */}
+        {/* MAIN DASHBOARD GRID */}
         {/* ================================================== */}
 
-        <section className="mt-3 grid gap-3 lg:grid-cols-[1.8fr_1fr]">
+        <section className="mt-5 grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
 
-          {/* ================================================= */}
-          {/* LEFT COLUMN */}
-          {/* ================================================= */}
+          {/* ================================================== */}
+          {/* FIELD MAP */}
+          {/* ================================================== */}
 
-          <div className="space-y-3">
+          <section className="overflow-hidden rounded-[28px] bg-white shadow-[0_8px_35px_rgba(0,0,0,0.035)]">
 
-            {/* --------------------------------------------- */}
-            {/* ACTIVITY */}
-            {/* --------------------------------------------- */}
+            <div className="flex items-start justify-between p-6">
 
-            <section className="rounded-[28px] bg-white p-6 shadow-[0_8px_35px_rgba(0,0,0,0.035)] sm:p-7">
+              <div>
 
-              <div className="flex items-start justify-between">
+                <p className="text-[9px] font-semibold tracking-[1px] text-[#999]">
+                  FIELD INTELLIGENCE
+                </p>
 
-                <div>
+                <h2 className="mt-1 text-[19px] font-semibold tracking-[-0.5px]">
+                  Tiger activity map
+                </h2>
 
-                  <p className="text-[10px] font-semibold tracking-[0.3px] text-[#888]">
-                    TIGER MONITORING
-                  </p>
-
-                  <h2 className="mt-1 text-[21px] font-semibold tracking-[-0.7px]">
-                    Wildlife activity
-                  </h2>
-
-                  <p className="mt-1 text-[10px] text-[#999]">
-                    Tiger sightings across monitored zones
-                  </p>
-
-                </div>
-
-                <div className="rounded-full bg-[#edf7ef] px-3 py-1.5 text-[9px] font-semibold text-[#579365]">
-                  Live data
-                </div>
+                <p className="mt-1 text-[10px] text-[#aaa]">
+                  Current activity across monitored zones
+                </p>
 
               </div>
 
-              <ActivityChart
-                data={activity}
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f5f5f3]">
+                <MapPin
+                  size={16}
+                  className="text-[#777]"
+                />
+              </div>
+
+            </div>
+
+
+            {/* ------------------------------------------------ */}
+            {/* MOCK MAP */}
+            {/* ------------------------------------------------ */}
+            {/*
+              Backend developer note:
+
+              Replace this visual map with a real GIS/map
+              component later.
+
+              Expected backend data:
+
+              {
+                latitude,
+                longitude,
+                zoneId,
+                tigerId,
+                sightings,
+                status
+              }
+
+              The UI should eventually render markers from
+              those coordinates.
+            */}
+
+            <div className="relative mx-5 mb-5 h-[330px] overflow-hidden rounded-[22px] bg-[#f1f1ee]">
+
+              {/* MAP GRID */}
+
+              <div
+                className="absolute inset-0 opacity-50"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(#deded9 1px, transparent 1px), linear-gradient(90deg, #deded9 1px, transparent 1px)",
+                  backgroundSize: "38px 38px",
+                }}
               />
 
-            </section>
+              {/* FOREST PATCHES */}
 
-            {/* --------------------------------------------- */}
-            {/* RECENT SIGHTINGS */}
-            {/* --------------------------------------------- */}
+              <div className="absolute left-[8%] top-[12%] h-[95px] w-[150px] rounded-[45%] bg-[#e4e7dc]" />
 
-            <section className="rounded-[28px] bg-white p-6 shadow-[0_8px_35px_rgba(0,0,0,0.035)] sm:p-7">
+              <div className="absolute right-[8%] top-[20%] h-[120px] w-[170px] rounded-[50%] bg-[#e7e9df]" />
 
-              <div className="mb-5 flex items-center justify-between">
+              <div className="absolute bottom-[12%] left-[30%] h-[110px] w-[200px] rounded-[50%] bg-[#e5e7dd]" />
 
-                <div>
+              {/* ZONE MARKERS */}
 
-                  <p className="text-[10px] font-semibold tracking-[0.3px] text-[#888]">
-                    RECENT OBSERVATIONS
-                  </p>
+              {zones.slice(0, 5).map(
+                (zone, index) => {
 
-                  <h2 className="mt-1 text-[19px] font-semibold tracking-[-0.6px]">
-                    Latest tiger sightings
-                  </h2>
+                  const positions = [
+                    {
+                      left: "24%",
+                      top: "27%",
+                    },
+                    {
+                      left: "67%",
+                      top: "35%",
+                    },
+                    {
+                      left: "48%",
+                      top: "68%",
+                    },
+                    {
+                      left: "78%",
+                      top: "72%",
+                    },
+                    {
+                      left: "18%",
+                      top: "73%",
+                    },
+                  ];
 
-                </div>
+                  const position =
+                    positions[index] ||
+                    positions[0];
 
-                <button className="flex items-center gap-1 text-[10px] font-semibold text-[#e97813] transition hover:text-[#c85f09]">
-
-                  View all
-
-                  <ArrowUpRight
-                    size={13}
-                  />
-
-                </button>
-
-              </div>
-
-              <div className="space-y-1">
-
-                {recentSightings.map(
-                  (sighting) => (
-                    <SightingRow
+                  return (
+                    <div
                       key={
-                        sighting.id
+                        zone.id ||
+                        zone.name ||
+                        index
                       }
-                      sighting={
-                        sighting
-                      }
-                    />
-                  )
-                )}
+                      className="absolute -translate-x-1/2 -translate-y-1/2"
+                      style={position}
+                    >
+
+                      <div className="relative flex h-11 w-11 items-center justify-center rounded-full bg-[#171717] shadow-lg">
+
+                        <MapPin
+                          size={18}
+                          className="text-[#ef7d16]"
+                        />
+
+                        <span className="absolute -right-2 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#e97813] px-1 text-[7px] font-bold text-white">
+                          {zone.sightings || 0}
+                        </span>
+
+                      </div>
+
+                      <div className="mt-2 rounded-full bg-white/90 px-2.5 py-1 text-center text-[8px] font-semibold shadow-sm backdrop-blur">
+                        {zone.name || "Zone"}
+                      </div>
+
+                    </div>
+                  );
+                }
+              )}
+
+
+              {/* MAP LEGEND */}
+
+              <div className="absolute bottom-4 left-4 rounded-xl bg-white/90 px-3 py-2 shadow-sm backdrop-blur">
+
+                <div className="flex items-center gap-2">
+
+                  <span className="h-2 w-2 rounded-full bg-[#e97813]" />
+
+                  <span className="text-[8px] text-[#777]">
+                    Tiger activity
+                  </span>
+
+                </div>
+
+                <div className="mt-1 flex items-center gap-2">
+
+                  <span className="h-2 w-2 rounded-full bg-[#171717]" />
+
+                  <span className="text-[8px] text-[#777]">
+                    Camera zone
+                  </span>
+
+                </div>
 
               </div>
 
-            </section>
+            </div>
 
-          </div>
+          </section>
 
-          {/* ================================================= */}
+
+          {/* ================================================== */}
           {/* RIGHT COLUMN */}
-          {/* ================================================= */}
+          {/* ================================================== */}
 
-          <div className="space-y-3">
+          <div className="space-y-5">
 
-            {/* --------------------------------------------- */}
-            {/* INTELLIGENCE */}
-            {/* --------------------------------------------- */}
-
-            <section className="rounded-[28px] bg-white p-6 shadow-[0_8px_35px_rgba(0,0,0,0.035)]">
-
-              <div className="flex items-start justify-between">
-
-                <div>
-
-                  <p className="text-[10px] font-semibold tracking-[0.3px] text-[#888]">
-                    INTELLIGENCE
-                  </p>
-
-                  <h2 className="mt-1 text-[19px] font-semibold tracking-[-0.5px]">
-                    System insights
-                  </h2>
-
-                </div>
-
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#171717]">
-
-                  <Activity
-                    size={15}
-                    className="text-[#ef7d16]"
-                  />
-
-                </div>
-
-              </div>
-
-              <div className="mt-6 space-y-5">
-
-                <InsightRow
-                  label="New sightings"
-                  value={
-                    intelligence.newSightings
-                  }
-                  icon={Eye}
-                />
-
-                <InsightRow
-                  label="Re-ID matches"
-                  value={
-                    intelligence.reidMatches
-                  }
-                  icon={ScanLine}
-                />
-
-                <InsightRow
-                  label="Pending reviews"
-                  value={
-                    intelligence.pendingReviews
-                  }
-                  icon={CircleDot}
-                  warning
-                />
-
-                <InsightRow
-                  label="Active alerts"
-                  value={
-                    intelligence.alerts
-                  }
-                  icon={
-                    AlertTriangle
-                  }
-                  warning
-                />
-
-              </div>
-
-            </section>
-
-            {/* --------------------------------------------- */}
-            {/* CAMERA STATUS */}
-            {/* --------------------------------------------- */}
+            {/* ---------------------------------------------- */}
+            {/* CAMERA COLLECTION */}
+            {/* ---------------------------------------------- */}
 
             <section className="rounded-[28px] bg-white p-6 shadow-[0_8px_35px_rgba(0,0,0,0.035)]">
 
@@ -468,12 +646,12 @@ export default function Overview() {
 
                 <div>
 
-                  <p className="text-[10px] font-semibold tracking-[0.3px] text-[#888]">
-                    CAMERA NETWORK
+                  <p className="text-[9px] font-semibold tracking-[1px] text-[#999]">
+                    CAMERA TRAPS
                   </p>
 
-                  <h2 className="mt-1 text-[19px] font-semibold tracking-[-0.5px]">
-                    Field status
+                  <h2 className="mt-1 text-[18px] font-semibold">
+                    Collection status
                   </h2>
 
                 </div>
@@ -485,170 +663,125 @@ export default function Overview() {
 
               </div>
 
-              <div className="mt-6">
 
-                <div className="flex items-end justify-between">
+              <div className="mt-6 flex items-end justify-between">
 
-                  <div>
+                <div>
 
-                    <p className="text-[31px] font-semibold tracking-[-1.5px]">
-                      {
-                        statistics.onlineCameras
-                      }
-                    </p>
+                  <p className="text-[32px] font-semibold tracking-[-1.5px]">
+                    {deployedCameras}
+                  </p>
 
-                    <p className="text-[10px] text-[#999]">
-                      of{" "}
-                      {
-                        statistics.totalCameras
-                      }{" "}
-                      cameras online
-                    </p>
-
-                  </div>
-
-                  <div className="text-right">
-
-                    <p className="text-[12px] font-semibold text-[#d56e18]">
-                      {
-                        statistics.offlineCameras
-                      }
-                    </p>
-
-                    <p className="text-[9px] text-[#999]">
-                      offline
-                    </p>
-
-                  </div>
+                  <p className="text-[9px] text-[#999]">
+                    of {totalCameras} cameras deployed
+                  </p>
 
                 </div>
 
-                <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#eeeeec]">
+                <div className="text-right">
 
-                  <div
-                    className="h-full rounded-full bg-[#171717] transition-all duration-700"
-                    style={{
-                      width: `${
-                        (statistics.onlineCameras /
-                          statistics.totalCameras) *
-                        100
-                      }%`,
-                    }}
-                  />
+                  <p className="text-[12px] font-semibold text-[#e97813]">
+                    {collectionDue}
+                  </p>
+
+                  <p className="text-[8px] text-[#999]">
+                    collection due
+                  </p>
 
                 </div>
 
-                <div className="mt-3 flex items-center justify-between text-[9px] text-[#999]">
+              </div>
 
-                  <span className="flex items-center gap-1.5">
 
-                    <Wifi
-                      size={11}
-                      className="text-[#63a66a]"
-                    />
+              <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#eeeeec]">
 
-                    Online
+                <div
+                  className="h-full rounded-full bg-[#171717] transition-all duration-700"
+                  style={{
+                    width: `${deployedPercentage}%`,
+                  }}
+                />
 
-                  </span>
+              </div>
 
-                  <span className="flex items-center gap-1.5">
 
-                    <WifiOff
-                      size={11}
-                      className="text-[#d87938]"
-                    />
+              <div className="mt-3 flex justify-between text-[8px] text-[#999]">
 
-                    Offline
+                <span>
+                  {deployedPercentage}% deployed
+                </span>
 
-                  </span>
-
-                </div>
+                <span>
+                  Offline field system
+                </span>
 
               </div>
 
             </section>
 
-            {/* --------------------------------------------- */}
-            {/* ZONES */}
-            {/* --------------------------------------------- */}
+
+            {/* ---------------------------------------------- */}
+            {/* PROCESSING PIPELINE */}
+            {/* ---------------------------------------------- */}
 
             <section className="rounded-[28px] bg-white p-6 shadow-[0_8px_35px_rgba(0,0,0,0.035)]">
 
-              <div className="mb-5 flex items-center justify-between">
+              <div className="flex items-start justify-between">
 
                 <div>
 
-                  <p className="text-[10px] font-semibold tracking-[0.3px] text-[#888]">
-                    FIELD ZONES
+                  <p className="text-[9px] font-semibold tracking-[1px] text-[#999]">
+                    AI PIPELINE
                   </p>
 
-                  <h2 className="mt-1 text-[19px] font-semibold tracking-[-0.5px]">
-                    Activity by zone
+                  <h2 className="mt-1 text-[18px] font-semibold">
+                    Processing queue
                   </h2>
 
                 </div>
 
-                <MapPin
-                  size={17}
-                  className="text-[#888]"
+                <Activity
+                  size={18}
+                  className="text-[#777]"
                 />
 
               </div>
 
-              <div className="space-y-4">
 
-                {zones.map(
-                  (zone) => (
-                    <div
-                      key={zone.id}
-                      className="flex items-center gap-3"
-                    >
+              <div className="mt-5 space-y-4">
 
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f5f5f3]">
+                <PipelineRow
+                  icon={Upload}
+                  label="Images imported"
+                  value={pendingProcessingImages}
+                />
 
-                        <MapPin
-                          size={14}
-                          className="text-[#777]"
-                        />
+                <PipelineRow
+                  icon={ScanLine}
+                  label="AI detection"
+                  value={
+                    intelligence.newSightings ||
+                    0
+                  }
+                />
 
-                      </div>
+                <PipelineRow
+                  icon={ShieldCheck}
+                  label="Re-ID matches"
+                  value={
+                    intelligence.reidMatches ||
+                    0
+                  }
+                />
 
-                      <div className="min-w-0 flex-1">
-
-                        <div className="flex items-center justify-between">
-
-                          <p className="truncate text-[11px] font-semibold">
-                            {zone.name}
-                          </p>
-
-                          <p className="text-[10px] font-medium text-[#777]">
-                            {
-                              zone.sightings
-                            }
-                          </p>
-
-                        </div>
-
-                        <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-[#eeeeec]">
-
-                          <div
-                            className="h-full rounded-full bg-[#e97813]"
-                            style={{
-                              width: `${Math.min(
-                                zone.sightings *
-                                  2,
-                                100
-                              )}%`,
-                            }}
-                          />
-
-                        </div>
-
-                      </div>
-
-                    </div>
-                  )
-                )}
+                <PipelineRow
+                  icon={Eye}
+                  label="Awaiting review"
+                  value={pendingReviews}
+                  warning={
+                    pendingReviews > 0
+                  }
+                />
 
               </div>
 
@@ -658,11 +791,141 @@ export default function Overview() {
 
         </section>
 
+
+        {/* ================================================== */}
+        {/* RECENT SIGHTINGS */}
+        {/* ================================================== */}
+
+        <section className="mt-5 rounded-[28px] bg-white p-6 shadow-[0_8px_35px_rgba(0,0,0,0.035)]">
+
+          <div className="flex items-start justify-between">
+
+            <div>
+
+              <p className="text-[9px] font-semibold tracking-[1px] text-[#999]">
+                RECENT EVIDENCE
+              </p>
+
+              <h2 className="mt-1 text-[19px] font-semibold">
+                Latest tiger sightings
+              </h2>
+
+            </div>
+
+            <button className="flex items-center gap-1 text-[9px] font-semibold text-[#777] transition hover:text-[#e97813]">
+
+              View all
+
+              <ArrowUpRight
+                size={12}
+              />
+
+            </button>
+
+          </div>
+
+
+          <div className="mt-5 divide-y divide-[#f0f0ed]">
+
+            {recentSightings.length === 0 ? (
+
+              <div className="py-10 text-center">
+
+                <Eye
+                  size={20}
+                  className="mx-auto text-[#bbb]"
+                />
+
+                <p className="mt-2 text-[10px] text-[#999]">
+                  No recent sightings
+                </p>
+
+              </div>
+
+            ) : (
+
+              recentSightings
+                .slice(0, 6)
+                .map((sighting) => (
+                  <SightingRow
+                    key={sighting.id}
+                    sighting={sighting}
+                  />
+                ))
+
+            )}
+
+          </div>
+
+        </section>
+
+
+        {/* ================================================== */}
+        {/* WEEKLY ACTIVITY */}
+        {/* ================================================== */}
+
+        <section className="mt-5 rounded-[28px] bg-white p-6 shadow-[0_8px_35px_rgba(0,0,0,0.035)]">
+
+          <div>
+
+            <p className="text-[9px] font-semibold tracking-[1px] text-[#999]">
+              ACTIVITY
+            </p>
+
+            <h2 className="mt-1 text-[19px] font-semibold">
+              Sightings this week
+            </h2>
+
+          </div>
+
+
+          <ActivityChart
+            data={activity}
+          />
+
+        </section>
+
+
+        {/* ================================================== */}
+        {/* FOOTER INFORMATION */}
+        {/* ================================================== */}
+
+        <div className="mt-5 flex flex-col items-center justify-between gap-2 px-2 text-[8px] text-[#aaa] sm:flex-row">
+
+          <span>
+            VanDrishti · Tiger Intelligence System
+          </span>
+
+          <span>
+            Last updated{" "}
+            {system.lastUpdated
+              ? formatDate(
+                  system.lastUpdated
+                )
+              : "recently"}
+          </span>
+
+        </div>
+
       </div>
 
+
       {/* ================================================== */}
-      {/* FLOATING GLASS BOTTOM NAVIGATION */}
+      {/* BOTTOM NAVIGATION */}
       {/* ================================================== */}
+      {/*
+        Navigation intentionally lives in its own component.
+
+        This keeps navigation independent from Overview and
+        allows the same navigation to be reused across:
+
+        Overview
+        Tigers
+        Processing
+        Cameras
+        Reviews
+        etc.
+      */}
 
       <BottomNavigation />
 
@@ -683,7 +946,7 @@ function StatCard({
   accent = false,
 }) {
   return (
-    <div className="rounded-[25px] bg-white p-5 shadow-[0_8px_35px_rgba(0,0,0,0.035)] transition-transform duration-200 hover:-translate-y-[1px]">
+    <div className="rounded-[25px] bg-white p-5 shadow-[0_8px_35px_rgba(0,0,0,0.035)] transition duration-200 hover:-translate-y-[2px]">
 
       <div className="flex items-start justify-between">
 
@@ -694,14 +957,12 @@ function StatCard({
               : "bg-[#f5f5f3] text-[#777]"
           }`}
         >
-
           <Icon size={17} />
-
         </div>
 
         {accent && (
-          <span className="rounded-full bg-[#fdf1e8] px-2 py-1 text-[8px] font-semibold text-[#d86d13]">
-            LIVE
+          <span className="rounded-full bg-[#fdf1e8] px-2 py-1 text-[7px] font-bold tracking-wide text-[#d86d13]">
+            FIELD
           </span>
         )}
 
@@ -725,36 +986,302 @@ function StatCard({
 
 
 // ============================================================
+// ATTENTION CARD
+// ============================================================
+
+function AttentionCard({
+  icon: Icon,
+  label,
+  value,
+  description,
+  tone = "normal",
+}) {
+  const warning =
+    tone === "orange";
+
+  return (
+    <div
+      className={`rounded-[22px] border p-4 ${
+        warning
+          ? "border-[#f2dfd0] bg-[#fffaf6]"
+          : "border-transparent bg-white"
+      } shadow-[0_6px_25px_rgba(0,0,0,0.025)]`}
+    >
+
+      <div className="flex items-start gap-3">
+
+        <div
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+            warning
+              ? "bg-[#171717] text-[#ef7d16]"
+              : "bg-[#f5f5f3] text-[#777]"
+          }`}
+        >
+          <Icon size={16} />
+        </div>
+
+        <div className="min-w-0 flex-1">
+
+          <div className="flex items-center justify-between">
+
+            <p className="text-[9px] font-semibold uppercase tracking-[0.5px] text-[#888]">
+              {label}
+            </p>
+
+            <p
+              className={`text-[18px] font-semibold ${
+                warning
+                  ? "text-[#d86d13]"
+                  : "text-[#333]"
+              }`}
+            >
+              {value}
+            </p>
+
+          </div>
+
+          <p className="mt-1 text-[9px] leading-4 text-[#999]">
+            {description}
+          </p>
+
+        </div>
+
+      </div>
+
+    </div>
+  );
+}
+
+
+// ============================================================
+// PIPELINE ROW
+// ============================================================
+
+function PipelineRow({
+  icon: Icon,
+  label,
+  value,
+  warning = false,
+}) {
+  return (
+    <div className="flex items-center gap-3">
+
+      <div
+        className={`flex h-8 w-8 items-center justify-center rounded-xl ${
+          warning
+            ? "bg-[#fff0e5] text-[#e97813]"
+            : "bg-[#f5f5f3] text-[#777]"
+        }`}
+      >
+        <Icon size={14} />
+      </div>
+
+      <div className="min-w-0 flex-1">
+
+        <p className="text-[10px] font-medium text-[#555]">
+          {label}
+        </p>
+
+        <div className="mt-1 h-1 overflow-hidden rounded-full bg-[#eeeeec]">
+
+          <div
+            className={`h-full rounded-full ${
+              warning
+                ? "bg-[#e97813]"
+                : "bg-[#171717]"
+            }`}
+            style={{
+              width: `${Math.min(
+                Number(value || 0) * 4,
+                100
+              )}%`,
+            }}
+          />
+
+        </div>
+
+      </div>
+
+      <span
+        className={`text-[11px] font-semibold ${
+          warning
+            ? "text-[#e97813]"
+            : "text-[#555]"
+        }`}
+      >
+        {value}
+      </span>
+
+    </div>
+  );
+}
+
+
+// ============================================================
+// SIGHTING ROW
+// ============================================================
+
+function SightingRow({
+  sighting,
+}) {
+  const verified =
+    sighting.status ===
+    "verified";
+
+  return (
+    <div className="flex items-center gap-3 py-4">
+
+      {/* IMAGE PLACEHOLDER */}
+
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#eeeeeb]">
+
+        <Eye
+          size={16}
+          className="text-[#999]"
+        />
+
+      </div>
+
+
+      {/* INFORMATION */}
+
+      <div className="min-w-0 flex-1">
+
+        <div className="flex items-center gap-2">
+
+          <p className="truncate text-[11px] font-semibold">
+            {sighting.tigerName ||
+              sighting.tigerId ||
+              "Unknown tiger"}
+          </p>
+
+          {verified && (
+            <CheckCircle2
+              size={11}
+              className="shrink-0 text-[#63a66a]"
+            />
+          )}
+
+        </div>
+
+        <p className="mt-1 truncate text-[9px] text-[#999]">
+          {sighting.location ||
+            "Unknown location"}
+        </p>
+
+      </div>
+
+
+      {/* CAMERA */}
+
+      <div className="hidden text-right sm:block">
+
+        <p className="text-[9px] font-medium text-[#777]">
+          {sighting.cameraId ||
+            "Camera"}
+        </p>
+
+        <p className="mt-1 text-[8px] text-[#aaa]">
+          {sighting.time ||
+            "--:--"}
+        </p>
+
+      </div>
+
+
+      {/* CONFIDENCE */}
+
+      <div className="text-right">
+
+        <p
+          className={`text-[10px] font-semibold ${
+            Number(
+              sighting.confidence || 0
+            ) >= 90
+              ? "text-[#63a66a]"
+              : "text-[#e97813]"
+          }`}
+        >
+          {sighting.confidence != null
+            ? `${sighting.confidence}%`
+            : "--"}
+        </p>
+
+        <p className="mt-1 text-[7px] uppercase tracking-wide text-[#aaa]">
+          confidence
+        </p>
+
+      </div>
+
+    </div>
+  );
+}
+
+
+// ============================================================
 // ACTIVITY CHART
 // ============================================================
 
-function ActivityChart({ data }) {
+function ActivityChart({
+  data = [],
+}) {
+  const safeData =
+    Array.isArray(data)
+      ? data
+      : [];
+
   const max =
     Math.max(
-      ...data.map(
-        (item) => item.sightings
-      )
-    ) || 1;
+      ...safeData.map(
+        (item) =>
+          Number(
+            item?.sightings || 0
+          )
+      ),
+      1
+    );
+
+  if (safeData.length === 0) {
+    return (
+      <div className="flex h-[180px] items-center justify-center">
+
+        <p className="text-[10px] text-[#aaa]">
+          No activity data available.
+        </p>
+
+      </div>
+    );
+  }
 
   return (
     <div className="mt-7">
 
       <div className="flex h-[180px] items-end gap-2 sm:gap-4">
 
-        {data.map(
-          (item) => {
+        {safeData.map(
+          (item, index) => {
+
+            const sightings =
+              Number(
+                item?.sightings || 0
+              );
+
             const height =
-              (item.sightings /
-                max) *
-              100;
+              Math.max(
+                (sightings / max) *
+                  100,
+                3
+              );
 
             const isHighest =
-              item.sightings ===
-              max;
+              sightings === max;
 
             return (
               <div
-                key={item.label}
+                key={
+                  item?.label ||
+                  index
+                }
                 className="group flex h-full flex-1 flex-col justify-end"
               >
 
@@ -773,9 +1300,7 @@ function ActivityChart({ data }) {
 
                     {isHighest && (
                       <div className="absolute -top-7 left-1/2 -translate-x-1/2 rounded-full bg-[#171717] px-2 py-1 text-[8px] font-semibold text-white">
-                        {
-                          item.sightings
-                        }
+                        {sightings}
                       </div>
                     )}
 
@@ -784,7 +1309,8 @@ function ActivityChart({ data }) {
                 </div>
 
                 <p className="mt-2 text-center text-[9px] text-[#999]">
-                  {item.label}
+                  {item?.label ||
+                    "--"}
                 </p>
 
               </div>
@@ -800,212 +1326,116 @@ function ActivityChart({ data }) {
 
 
 // ============================================================
-// SIGHTING ROW
-// ============================================================
-
-function SightingRow({
-  sighting,
-}) {
-  return (
-    <div className="group flex items-center gap-3 rounded-2xl px-2 py-3 transition hover:bg-[#fafaf8]">
-
-      {/* Image placeholder */}
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#171717]">
-
-        <ScanLine
-          size={17}
-          className="text-[#ef7d16]"
-        />
-
-      </div>
-
-      {/* Main */}
-      <div className="min-w-0 flex-1">
-
-        <div className="flex items-center gap-2">
-
-          <p className="text-[11px] font-semibold">
-            {sighting.tigerName}
-          </p>
-
-          <span
-            className={`rounded-full px-1.5 py-0.5 text-[7px] font-semibold uppercase ${
-              sighting.status ===
-              "verified"
-                ? "bg-[#edf7ef] text-[#579365]"
-                : "bg-[#fff3e8] text-[#d87938]"
-            }`}
-          >
-            {
-              sighting.status
-            }
-          </span>
-
-        </div>
-
-        <p className="mt-0.5 truncate text-[9px] text-[#999]">
-          {sighting.location}{" "}
-          ·{" "}
-          {sighting.cameraId}
-        </p>
-
-      </div>
-
-      {/* Confidence */}
-      <div className="hidden text-right sm:block">
-
-        <p className="text-[10px] font-semibold">
-          {
-            sighting.confidence
-          }%
-        </p>
-
-        <p className="text-[8px] text-[#aaa]">
-          {sighting.time}
-        </p>
-
-      </div>
-
-      <ChevronRight
-        size={14}
-        className="text-[#c4c4c4] transition group-hover:text-[#e97813]"
-      />
-
-    </div>
-  );
-}
-
-
-// ============================================================
-// INSIGHT ROW
-// ============================================================
-
-function InsightRow({
-  label,
-  value,
-  icon: Icon,
-  warning = false,
-}) {
-  return (
-    <div className="flex items-center gap-3">
-
-      <div
-        className={`flex h-9 w-9 items-center justify-center rounded-xl ${
-          warning
-            ? "bg-[#fff4e9] text-[#d9782d]"
-            : "bg-[#f5f5f3] text-[#777]"
-        }`}
-      >
-
-        <Icon size={15} />
-
-      </div>
-
-      <p className="flex-1 text-[11px] font-medium text-[#555]">
-        {label}
-      </p>
-
-      <p
-        className={`text-[15px] font-semibold ${
-          warning
-            ? "text-[#d9782d]"
-            : "text-[#222]"
-        }`}
-      >
-        {value}
-      </p>
-
-    </div>
-  );
-}
-
-
-// ============================================================
-// TIGER ICON
-// ============================================================
-
-function TigerIcon() {
-  return (
-    <span className="text-[16px] leading-none">
-      🐅
-    </span>
-  );
-}
-
-
-// ============================================================
-// SKELETON
+// LOADING SKELETON
 // ============================================================
 
 function OverviewSkeleton() {
   return (
     <main className="min-h-screen bg-[#f7f7f5] px-4 pb-32 pt-6 sm:px-6 lg:px-8">
 
-      <div className="mx-auto max-w-[1450px]">
+      <div className="mx-auto max-w-[1450px] animate-pulse">
 
-        {/* Header */}
+        {/* HEADER */}
 
-        <div className="mb-7 flex items-center justify-between">
+        <div className="flex items-center justify-between">
 
-          <div className="flex items-center gap-3">
+          <div>
 
-            <div className="h-10 w-10 animate-pulse rounded-[13px] bg-white" />
+            <div className="h-9 w-9 rounded-xl bg-[#e8e8e4]" />
 
-            <div>
+            <div className="mt-6 h-8 w-52 rounded-lg bg-[#e8e8e4]" />
 
-              <div className="h-5 w-28 animate-pulse rounded bg-white" />
-
-              <div className="mt-1 h-2.5 w-40 animate-pulse rounded bg-white" />
-
-            </div>
+            <div className="mt-2 h-3 w-36 rounded bg-[#e8e8e4]" />
 
           </div>
 
-          <div className="h-10 w-32 animate-pulse rounded-full bg-white" />
+          <div className="hidden h-8 w-32 rounded-full bg-[#e8e8e4] sm:block" />
 
         </div>
 
-        {/* Stats */}
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {/* STAT CARDS */}
+
+        <div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
 
           {[1, 2, 3, 4].map(
             (item) => (
               <div
                 key={item}
-                className="h-36 animate-pulse rounded-[25px] bg-white"
+                className="h-[145px] rounded-[25px] bg-white"
               />
             )
           )}
 
         </div>
 
-        {/* Main */}
 
-        <div className="mt-3 grid gap-3 lg:grid-cols-[1.8fr_1fr]">
+        {/* ATTENTION */}
 
-          <div className="space-y-3">
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
 
-            <div className="h-[410px] animate-pulse rounded-[28px] bg-white" />
+          {[1, 2, 3].map(
+            (item) => (
+              <div
+                key={item}
+                className="h-[90px] rounded-[22px] bg-white"
+              />
+            )
+          )}
 
-            <div className="h-[300px] animate-pulse rounded-[28px] bg-white" />
+        </div>
 
-          </div>
 
-          <div className="space-y-3">
+        {/* MAIN */}
 
-            <div className="h-[250px] animate-pulse rounded-[28px] bg-white" />
+        <div className="mt-5 grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
 
-            <div className="h-[210px] animate-pulse rounded-[28px] bg-white" />
+          <div className="h-[450px] rounded-[28px] bg-white" />
 
-            <div className="h-[200px] animate-pulse rounded-[28px] bg-white" />
+          <div className="space-y-5">
+
+            <div className="h-[210px] rounded-[28px] bg-white" />
+
+            <div className="h-[280px] rounded-[28px] bg-white" />
 
           </div>
 
         </div>
 
+
+        {/* SIGHTINGS */}
+
+        <div className="mt-5 h-[380px] rounded-[28px] bg-white" />
+
       </div>
+
+      <BottomNavigation />
 
     </main>
   );
+}
+
+
+// ============================================================
+// DATE FORMATTER
+// ============================================================
+
+function formatDate(
+  value
+) {
+  try {
+    return new Intl.DateTimeFormat(
+      "en-IN",
+      {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    ).format(
+      new Date(value)
+    );
+  } catch {
+    return "recently";
+  }
 }

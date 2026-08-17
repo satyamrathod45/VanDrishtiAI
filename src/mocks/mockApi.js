@@ -9,7 +9,7 @@
 | This file simulates the VanDrishti backend while the real backend
 | is being developed.
 |
-| The frontend should NEVER depend directly on mockDB.
+| Frontend should NEVER directly access mockDB.
 |
 | Frontend
 |    ↓
@@ -17,17 +17,14 @@
 |    ↓
 | api.js
 |    ↓
-| mockApi.js       ← THIS FILE
+| mockApi.js
 |    ↓
 | mockDB
 |
-|
-| IMPORTANT
 |--------------------------------------------------------------------------
 |
-| VanDrishti uses OFFLINE camera traps.
-|
-| The actual field workflow is:
+| VANDrISHTI FIELD WORKFLOW
+|--------------------------------------------------------------------------
 |
 | Camera Trap
 |      ↓
@@ -43,47 +40,44 @@
 |      ↓
 | Re-ID
 |      ↓
-| Tiger / Review
+| Human Review
+|      ↓
+| Verified Tiger Intelligence
 |
+|--------------------------------------------------------------------------
 |
-| The mock API therefore models:
+| IMPORTANT
+|--------------------------------------------------------------------------
 |
-| 1. Forest Officer authentication
-| 2. Dashboard / Overview
-| 3. Tigers
-| 4. Tiger sightings
-| 5. Tiger Re-ID
-| 6. Cameras
-| 7. Camera collections
-| 8. Camera captures
-| 9. Processing jobs
-| 10. Image import sessions
-| 11. Alerts
-| 12. Image reviews
+| Cameras are OFFLINE camera traps.
+|
+| Therefore:
+|
+| "camera status" does NOT mean internet connectivity.
+|
+| The system is focused on:
+|
+| - Field collections
+| - Image ingestion
+| - Large dataset processing
+| - Tiger detection
+| - Tiger Re-ID
+| - Human verification
+| - Tiger profiles
+| - Geographic intelligence
 |
 |--------------------------------------------------------------------------
 */
 
-import { mockDB } from "./db";
+
+import {
+  mockDB,
+} from "./db";
 
 
 // ============================================================================
 // MOCK NETWORK DELAY
 // ============================================================================
-
-/*
-|--------------------------------------------------------------------------
-| Simulate real API latency.
-|--------------------------------------------------------------------------
-|
-| This is useful because it forces the frontend to properly handle:
-|
-| - Loading states
-| - Error states
-| - Async requests
-| - Skeletons
-|
-*/
 
 const delay = (
   milliseconds = 400
@@ -107,20 +101,6 @@ const delay = (
 // API RESPONSE HELPERS
 // ============================================================================
 
-/*
-|--------------------------------------------------------------------------
-| SUCCESS RESPONSE
-|--------------------------------------------------------------------------
-|
-| All successful mock API calls follow the same structure.
-|
-| {
-|     success: true,
-|     data: ...
-| }
-|
-*/
-
 const successResponse = (
   data
 ) => {
@@ -133,19 +113,15 @@ const successResponse = (
 };
 
 
-/*
-|--------------------------------------------------------------------------
-| ERROR HELPER
-|--------------------------------------------------------------------------
-*/
-
 const createApiError = (
   message,
   status = 400
 ) => {
 
   const error =
-    new Error(message);
+    new Error(
+      message
+    );
 
   error.status =
     status;
@@ -155,28 +131,59 @@ const createApiError = (
 };
 
 
-/*
-|--------------------------------------------------------------------------
-| SANITIZE FOREST OFFICER
-|--------------------------------------------------------------------------
-|
-| Passwords should NEVER be returned to the frontend.
-|
-| The mock database contains passwords only because we are simulating
-| authentication.
-|
-| A real backend would hash passwords and never expose them.
-|
-*/
+// ============================================================================
+// SAFE ARRAY HELPER
+// ============================================================================
+//
+// This prevents the UI from crashing if a mock DB collection is missing.
+//
+// Example:
+//
+// mockDB.reviews
+// mockDB.processingJobs
+//
+// If any of them are temporarily unavailable, the API returns [].
+//
+// This is ONLY for frontend development.
+// The real backend should return proper database results.
+//
+
+const safeArray = (
+  value
+) => {
+
+  return Array.isArray(
+    value
+  )
+    ? value
+    : [];
+
+};
+
+
+// ============================================================================
+// SANITIZE FOREST OFFICER
+// ============================================================================
+//
+// Password must NEVER be returned to the frontend.
+//
 
 const sanitizeOfficer = (
   officer
 ) => {
 
+  if (!officer) {
+
+    return null;
+
+  }
+
+
   const {
     password,
     ...safeOfficer
   } = officer;
+
 
   return safeOfficer;
 
@@ -226,7 +233,9 @@ export const mockApi = {
 
 
       const tiger =
-        mockDB.tigers.find(
+        safeArray(
+          mockDB.tigers
+        ).find(
           (item) =>
             item.id ===
             tigerId
@@ -275,7 +284,9 @@ export const mockApi = {
 
 
       const sightings =
-        mockDB.tigerSightings.filter(
+        safeArray(
+          mockDB.tigerSightings
+        ).filter(
           (item) =>
             item.tigerId ===
             tigerId
@@ -314,7 +325,9 @@ export const mockApi = {
 
 
       const matches =
-        mockDB.tigerReidMatches.filter(
+        safeArray(
+          mockDB.tigerReidMatches
+        ).filter(
           (item) =>
             item.tigerId ===
             tigerId
@@ -353,7 +366,9 @@ export const mockApi = {
 
 
       const camera =
-        mockDB.cameras.find(
+        safeArray(
+          mockDB.cameras
+        ).find(
           (item) =>
             item.id ===
             cameraId
@@ -402,7 +417,9 @@ export const mockApi = {
 
 
       const collections =
-        mockDB.cameraCollections.filter(
+        safeArray(
+          mockDB.cameraCollections
+        ).filter(
           (item) =>
             item.cameraId ===
             cameraId
@@ -441,7 +458,9 @@ export const mockApi = {
 
 
       const captures =
-        mockDB.cameraCaptures.filter(
+        safeArray(
+          mockDB.cameraCaptures
+        ).filter(
           (item) =>
             item.cameraId ===
             cameraId
@@ -473,13 +492,640 @@ export const mockApi = {
       | GET /api/overview
       |--------------------------------------------------------------------------
       |
-      | Main VanDrishti command dashboard data.
+      | Main VanDrishti Forest Officer command dashboard.
+      |
+      |--------------------------------------------------------------------------
+      |
+      | The redesigned Overview is intentionally NOT a generic analytics
+      | dashboard.
+      |
+      | It focuses on:
+      |
+      | 1. Officer actions
+      | 2. Forest map
+      | 3. Processing status
+      | 4. Camera collections
+      | 5. Tiger intelligence
+      | 6. Recent observations
+      |
+      |--------------------------------------------------------------------------
+      |
+      | We intentionally DO NOT expose:
+      |
+      | - Camera online/offline metrics
+      | - Generic AI accuracy
+      | - Decorative charts
+      | - Meaningless KPI cards
       |
       */
 
-      case "/api/overview":
+      case "/api/overview": {
+
+        // --------------------------------------------------------------------
+        // SOURCE DATA
+        // --------------------------------------------------------------------
+
+        const tigers =
+          safeArray(
+            mockDB.tigers
+          );
+
+
+        const sightings =
+          safeArray(
+            mockDB.sightings
+          );
+
+
+        const reviews =
+          safeArray(
+            mockDB.reviews
+          );
+
+
+        const processingJobs =
+          safeArray(
+            mockDB.processingJobs
+          );
+
+
+        const collections =
+          safeArray(
+            mockDB.cameraCollections
+          );
+
+
+        const alerts =
+          safeArray(
+            mockDB.alerts
+          );
+
+
+        // --------------------------------------------------------------------
+        // IDENTIFIED TIGERS
+        // --------------------------------------------------------------------
+
+        const identifiedTigers =
+          tigers.filter(
+            (tiger) =>
+              tiger.status ===
+                "identified" ||
+              tiger.status ===
+                "active"
+          );
+
+
+        // --------------------------------------------------------------------
+        // PENDING REVIEWS
+        // --------------------------------------------------------------------
+
+        const pendingReviews =
+          reviews.filter(
+            (review) =>
+              review.status ===
+                "pending" ||
+              review.status ===
+                "review"
+          );
+
+
+        // --------------------------------------------------------------------
+        // ACTIVE ALERTS
+        // --------------------------------------------------------------------
+
+        const activeAlerts =
+          alerts.filter(
+            (alert) =>
+              alert.status ===
+                "open" ||
+              alert.status ===
+                "active"
+          );
+
+
+        // --------------------------------------------------------------------
+        // ACTIVE PROCESSING JOB
+        // --------------------------------------------------------------------
+
+        const activeProcessingJob =
+          processingJobs.find(
+            (job) =>
+              job.status ===
+                "processing" ||
+              job.status ===
+                "running"
+          );
+
+
+        // --------------------------------------------------------------------
+        // COMPLETED PROCESSING JOBS
+        // --------------------------------------------------------------------
+
+        const completedProcessingJobs =
+          processingJobs.filter(
+            (job) =>
+              job.status ===
+              "completed"
+          );
+
+
+        // --------------------------------------------------------------------
+        // UNKNOWN TIGER / UNCERTAIN RE-ID
+        // --------------------------------------------------------------------
+
+        const unknownReviews =
+          reviews.filter(
+            (review) => {
+
+              return (
+                !review.predictedTigerId &&
+                !review.tigerId
+              );
+
+            }
+          );
+
+
+        // --------------------------------------------------------------------
+        // COLLECTIONS WAITING FOR PROCESSING
+        // --------------------------------------------------------------------
+
+        const collectionDue =
+          collections.filter(
+            (collection) => {
+
+              const status =
+                collection.status;
+
+              return (
+                status ===
+                  "collected" ||
+                status ===
+                  "uploaded" ||
+                status ===
+                  "pending_processing"
+              );
+
+            }
+          );
+
+
+        // --------------------------------------------------------------------
+        // RECENT SIGHTINGS
+        // --------------------------------------------------------------------
+
+        const recentSightings =
+          sightings
+            .slice(
+              0,
+              6
+            )
+            .map(
+              (
+                sighting
+              ) => ({
+
+                id:
+                  sighting.id,
+
+                tigerId:
+                  sighting.tigerId ||
+                  null,
+
+                tigerName:
+                  sighting.tigerName ||
+                  sighting.tigerId ||
+                  "Unknown tiger",
+
+                cameraId:
+                  sighting.cameraId ||
+                  "Unknown camera",
+
+                location:
+                  sighting.location ||
+                  "Forest zone",
+
+                time:
+                  sighting.time ||
+                  "--:--",
+
+                date:
+                  sighting.date ||
+                  "2026-08-16",
+
+                confidence:
+                  sighting.confidence ||
+                  0,
+
+                status:
+                  sighting.status ||
+                  "observed",
+
+                latitude:
+                  sighting.latitude ||
+                  null,
+
+                longitude:
+                  sighting.longitude ||
+                  null,
+
+                imageId:
+                  sighting.imageId ||
+                  null,
+
+                detectionType:
+                  sighting.detectionType ||
+                  "tiger_detection",
+
+              })
+            );
+
+
+        // --------------------------------------------------------------------
+        // MAP DATA
+        // --------------------------------------------------------------------
+        //
+        // IMPORTANT:
+        //
+        // Your existing mockDB does NOT have mockDB.zones.
+        //
+        // Therefore we keep the map's initial zone data here.
+        //
+        // Production backend should eventually provide this through:
+        //
+        // GET /api/zones
+        //
+        // or a GIS service.
+        //
+
+        const zones = [
+
+          {
+            id:
+              "ZONE-A",
+
+            name:
+              "Moharli",
+
+            sightings:
+              38,
+
+            status:
+              "active",
+
+            latitude:
+              20.2674,
+
+            longitude:
+              79.3684,
+
+          },
+
+
+          {
+            id:
+              "ZONE-B",
+
+            name:
+              "Navegaon",
+
+            sightings:
+              27,
+
+            status:
+              "active",
+
+            latitude:
+              20.2976,
+
+            longitude:
+              79.2842,
+
+          },
+
+
+          {
+            id:
+              "ZONE-C",
+
+            name:
+              "Tadoba",
+
+            sightings:
+              19,
+
+            status:
+              "active",
+
+            latitude:
+              20.2154,
+
+            longitude:
+              79.3127,
+
+          },
+
+
+          {
+            id:
+              "ZONE-D",
+
+            name:
+              "Buffer",
+
+            sightings:
+              13,
+
+            status:
+              "active",
+
+            latitude:
+              20.3251,
+
+            longitude:
+              79.4102,
+
+          },
+
+        ];
+
+
+        // --------------------------------------------------------------------
+        // PROCESSING RESPONSE
+        // --------------------------------------------------------------------
+        //
+        // Normalize processing jobs so Overview.jsx always receives the
+        // fields it expects.
+        //
+        // This also allows us to keep your existing db.js unchanged.
+        //
+
+        const normalizedProcessingJobs =
+          processingJobs.map(
+            (
+              job
+            ) => {
+
+              const totalImages =
+                Number(
+                  job.totalImages ||
+                  job.imageCount ||
+                  0
+                );
+
+
+              const processedImages =
+                Number(
+                  job.processedImages ||
+                  0
+                );
+
+
+              let progress =
+                Number(
+                  job.progress ||
+                  0
+                );
+
+
+              if (
+                progress === 0 &&
+                totalImages > 0
+              ) {
+
+                progress =
+                  Math.round(
+                    (
+                      processedImages /
+                      totalImages
+                    ) *
+                    100
+                  );
+
+              }
+
+
+              if (
+                job.status ===
+                "completed"
+              ) {
+
+                progress =
+                  100;
+
+              }
+
+
+              return {
+
+                id:
+                  job.id,
+
+                datasetId:
+                  job.datasetId ||
+                  job.importId ||
+                  null,
+
+                cameraId:
+                  job.cameraId ||
+                  null,
+
+                zoneId:
+                  job.zoneId ||
+                  null,
+
+                status:
+                  job.status ||
+                  "queued",
+
+                totalImages,
+
+                processedImages,
+
+                failedImages:
+                  Number(
+                    job.failedImages ||
+                    0
+                  ),
+
+                tigerDetections:
+                  Number(
+                    job.tigerDetections ||
+                    job.detectedImages ||
+                    0
+                  ),
+
+                identifiedTigers:
+                  Number(
+                    job.identifiedTigers ||
+                    0
+                  ),
+
+                unknownDetections:
+                  Number(
+                    job.unknownDetections ||
+                    0
+                  ),
+
+                pendingReviews:
+                  Number(
+                    job.pendingReviews ||
+                    0
+                  ),
+
+                progress,
+
+                currentStage:
+                  job.currentStage ||
+                  job.stage ||
+                  (
+                    job.status ===
+                    "completed"
+                      ? "Completed"
+                      : "Processing"
+                  ),
+
+                startedAt:
+                  job.startedAt ||
+                  job.createdAt ||
+                  null,
+
+                completedAt:
+                  job.completedAt ||
+                  null,
+
+                estimatedRemaining:
+                  job.estimatedRemaining ||
+                  null,
+
+              };
+
+            }
+          );
+
+
+        // --------------------------------------------------------------------
+        // FALLBACK PROCESSING JOB
+        // --------------------------------------------------------------------
+        //
+        // If the existing db.js doesn't yet contain a processing job,
+        // the dashboard still gets realistic data.
+        //
+        // This can be removed once db.js contains real mock jobs.
+        //
+
+        if (
+          normalizedProcessingJobs.length ===
+          0
+        ) {
+
+          normalizedProcessingJobs.push({
+
+            id:
+              "JOB-2026-0816-0042",
+
+            datasetId:
+              "COL-2026-0816-0042",
+
+            cameraId:
+              "CAM-018",
+
+            zoneId:
+              "ZONE-A",
+
+            status:
+              "processing",
+
+            totalImages:
+              84231,
+
+            processedImages:
+              68912,
+
+            failedImages:
+              37,
+
+            tigerDetections:
+              1284,
+
+            identifiedTigers:
+              941,
+
+            unknownDetections:
+              43,
+
+            pendingReviews:
+              12,
+
+            progress:
+              82,
+
+            currentStage:
+              "Re-identification",
+
+            startedAt:
+              "2026-08-16T18:05:00Z",
+
+            completedAt:
+              null,
+
+            estimatedRemaining:
+              "18 min",
+
+          });
+
+        }
+
+
+        // --------------------------------------------------------------------
+        // ACTIVE JOB AFTER NORMALIZATION
+        // --------------------------------------------------------------------
+
+        const dashboardActiveJob =
+          normalizedProcessingJobs.find(
+            (job) =>
+              job.status ===
+                "processing" ||
+              job.status ===
+                "running"
+          );
+
+
+        // --------------------------------------------------------------------
+        // PENDING IMAGE COUNT
+        // --------------------------------------------------------------------
+
+        const pendingProcessingImages =
+          dashboardActiveJob
+            ? Math.max(
+                dashboardActiveJob.totalImages -
+                  dashboardActiveJob.processedImages,
+                0
+              )
+            : 0;
+
+
+        // --------------------------------------------------------------------
+        // TODAY'S SIGHTINGS
+        // --------------------------------------------------------------------
+
+        const todaysSightings =
+          recentSightings.filter(
+            (sighting) =>
+              sighting.date ===
+              "2026-08-16"
+          );
+
+
+        // --------------------------------------------------------------------
+        // FINAL OVERVIEW RESPONSE
+        // --------------------------------------------------------------------
 
         return successResponse({
+
+          // ==================================================================
+          // SYSTEM
+          // ==================================================================
 
           system: {
 
@@ -487,7 +1133,7 @@ export const mockApi = {
               "operational",
 
             lastUpdated:
-              "2026-08-15T18:42:00Z",
+              "2026-08-16T19:05:00Z",
 
             monitoringActive:
               true,
@@ -495,268 +1141,239 @@ export const mockApi = {
           },
 
 
+          // ==================================================================
+          // OPERATIONAL STATISTICS
+          // ==================================================================
+
           statistics: {
 
             totalTigers:
+              tigers.length ||
               47,
 
             identifiedTigers:
+              identifiedTigers.length ||
               42,
 
             unknownTigers:
-              5,
+              unknownReviews.length ||
+              2,
 
             totalSightings:
+              sightings.length ||
               1284,
 
             todaysSightings:
+              todaysSightings.length ||
               18,
 
-            totalCameras:
-              124,
-
-            deployedCameras:
-              118,
+            /*
+            |--------------------------------------------------------------------------
+            | IMPORTANT
+            |--------------------------------------------------------------------------
+            |
+            | We intentionally DO NOT return:
+            |
+            | totalCameras
+            | onlineCameras
+            | offlineCameras
+            |
+            | because VanDrishti uses offline camera traps.
+            |
+            */
 
             collectionDue:
-              6,
+              collectionDue.length ||
+              2,
 
-            pendingProcessingImages:
-              1521,
+            pendingProcessingImages,
 
             pendingReviews:
+              pendingReviews.length ||
               12,
 
             activeAlerts:
-              2,
+              activeAlerts.length ||
+              1,
 
           },
 
 
-          activity: [
+          // ==================================================================
+          // RECENT INTELLIGENCE
+          // ==================================================================
 
-            {
-              label: "Mon",
-              sightings: 42,
-            },
-
-            {
-              label: "Tue",
-              sightings: 56,
-            },
-
-            {
-              label: "Wed",
-              sightings: 48,
-            },
-
-            {
-              label: "Thu",
-              sightings: 71,
-            },
-
-            {
-              label: "Fri",
-              sightings: 64,
-            },
-
-            {
-              label: "Sat",
-              sightings: 82,
-            },
-
-            {
-              label: "Sun",
-              sightings: 68,
-            },
-
-          ],
+          recentSightings:
 
 
-          recentSightings: [
+            recentSightings.length > 0
 
-            {
-              id: "SIG-1024",
+              ? recentSightings
 
-              tigerId:
-                "TGR-024",
+              : [
 
-              tigerName:
-                "T-024",
+                  {
+                    id:
+                      "SIG-1024",
 
-              cameraId:
-                "CAM-018",
+                    tigerId:
+                      "TGR-024",
 
-              location:
-                "Zone A · Moharli",
+                    tigerName:
+                      "TGR-024",
 
-              time:
-                "18:42",
+                    cameraId:
+                      "CAM-014",
 
-              confidence:
-                97,
+                    location:
+                      "Moharli Zone A",
 
-              status:
-                "verified",
+                    time:
+                      "18:42",
 
-            },
+                    date:
+                      "2026-08-16",
 
+                    confidence:
+                      96,
 
-            {
-              id: "SIG-1023",
+                    status:
+                      "verified",
 
-              tigerId:
-                "TGR-011",
+                    latitude:
+                      20.2674,
 
-              tigerName:
-                "T-011",
+                    longitude:
+                      79.3684,
 
-              cameraId:
-                "CAM-042",
-
-              location:
-                "Zone B · Navegaon",
-
-              time:
-                "17:56",
-
-              confidence:
-                94,
-
-              status:
-                "verified",
-
-            },
+                  },
 
 
-            {
-              id: "SIG-1022",
+                  {
+                    id:
+                      "SIG-1023",
 
-              tigerId:
-                "TGR-037",
+                    tigerId:
+                      "TGR-011",
 
-              tigerName:
-                "T-037",
+                    tigerName:
+                      "TGR-011",
 
-              cameraId:
-                "CAM-031",
+                    cameraId:
+                      "CAM-021",
 
-              location:
-                "Zone C · Tadoba",
+                    location:
+                      "Tadoba Core",
 
-              time:
-                "17:21",
+                    time:
+                      "17:31",
 
-              confidence:
-                89,
+                    date:
+                      "2026-08-16",
 
-              status:
-                "review",
+                    confidence:
+                      94,
 
-            },
+                    status:
+                      "verified",
+
+                    latitude:
+                      20.2154,
+
+                    longitude:
+                      79.3127,
+
+                  },
 
 
-            {
-              id: "SIG-1021",
+                  {
+                    id:
+                      "SIG-1022",
 
-              tigerId:
-                "TGR-006",
+                    tigerId:
+                      "TGR-037",
 
-              tigerName:
-                "T-006",
+                    tigerName:
+                      "TGR-037",
 
-              cameraId:
-                "CAM-011",
+                    cameraId:
+                      "CAM-051",
 
-              location:
-                "Zone A · Moharli",
+                    location:
+                      "Buffer Zone",
 
-              time:
-                "16:48",
+                    time:
+                      "16:54",
 
-              confidence:
-                96,
+                    date:
+                      "2026-08-16",
 
-              status:
-                "verified",
+                    confidence:
+                      73,
 
-            },
+                    status:
+                      "review",
 
-          ],
+                    latitude:
+                      20.3251,
 
+                    longitude:
+                      79.4102,
+
+                  },
+
+                ],
+
+
+          // ==================================================================
+          // OFFICER INTELLIGENCE
+          // ==================================================================
 
           intelligence: {
 
             newSightings:
+              todaysSightings.length ||
               12,
 
             reidMatches:
+              todaysSightings.filter(
+                (item) =>
+                  item.tigerId
+              ).length ||
               9,
 
             pendingReviews:
-              4,
+              pendingReviews.length ||
+              12,
 
             alerts:
-              2,
+              activeAlerts.length ||
+              1,
 
-            detectionAccuracy:
-              94.7,
+            unknownTigers:
+              unknownReviews.length ||
+              2,
 
           },
 
 
-          zones: [
+          // ==================================================================
+          // PROCESSING JOBS
+          // ==================================================================
 
-            {
-              id:
-                "ZONE-A",
-
-              name:
-                "Moharli",
-
-              sightings:
-                38,
-
-              status:
-                "active",
-
-            },
+          processingJobs:
+            normalizedProcessingJobs,
 
 
-            {
-              id:
-                "ZONE-B",
+          // ==================================================================
+          // MAP / ZONES
+          // ==================================================================
 
-              name:
-                "Navegaon",
-
-              sightings:
-                27,
-
-              status:
-                "active",
-
-            },
-
-
-            {
-              id:
-                "ZONE-C",
-
-              name:
-                "Tadoba",
-
-              sightings:
-                19,
-
-              status:
-                "active",
-
-            },
-
-          ],
+          zones,
 
         });
+
+      }
 
 
       // ======================================================================
@@ -772,7 +1389,9 @@ export const mockApi = {
       case "/api/tigers":
 
         return successResponse(
-          mockDB.tigers
+          safeArray(
+            mockDB.tigers
+          )
         );
 
 
@@ -785,19 +1404,20 @@ export const mockApi = {
       | GET /api/cameras
       |--------------------------------------------------------------------------
       |
-      | Returns the deployed camera-trap registry.
+      | Returns the physical camera-trap registry.
       |
       | IMPORTANT:
       |
-      | "status" represents field/deployment state.
-      | It does NOT mean internet connectivity.
+      | status != internet connectivity.
       |
       */
 
       case "/api/cameras":
 
         return successResponse(
-          mockDB.cameras
+          safeArray(
+            mockDB.cameras
+          )
         );
 
 
@@ -814,7 +1434,9 @@ export const mockApi = {
       case "/api/collections":
 
         return successResponse(
-          mockDB.cameraCollections
+          safeArray(
+            mockDB.cameraCollections
+          )
         );
 
 
@@ -828,11 +1450,19 @@ export const mockApi = {
       |--------------------------------------------------------------------------
       */
 
-      case "/api/processing/jobs":
+      case "/api/processing/jobs": {
+
+        const jobs =
+          safeArray(
+            mockDB.processingJobs
+          );
+
 
         return successResponse(
-          mockDB.processingJobs
+          jobs
         );
+
+      }
 
 
       // ======================================================================
@@ -848,7 +1478,9 @@ export const mockApi = {
       case "/api/sightings":
 
         return successResponse(
-          mockDB.sightings
+          safeArray(
+            mockDB.sightings
+          )
         );
 
 
@@ -865,7 +1497,9 @@ export const mockApi = {
       case "/api/alerts":
 
         return successResponse(
-          mockDB.alerts
+          safeArray(
+            mockDB.alerts
+          )
         );
 
 
@@ -878,19 +1512,21 @@ export const mockApi = {
       | GET /api/reviews
       |--------------------------------------------------------------------------
       |
-      | These are images that require human verification.
+      | Images requiring human verification.
       |
       */
 
       case "/api/reviews":
 
         return successResponse(
-          mockDB.reviews
+          safeArray(
+            mockDB.reviews
+          )
         );
 
 
       // ======================================================================
-      // UNKNOWN ENDPOINT
+      // UNKNOWN GET ENDPOINT
       // ======================================================================
 
       default:
@@ -911,7 +1547,7 @@ export const mockApi = {
 
   async post(
     endpoint,
-    body
+    body = {}
   ) {
 
     await delay();
@@ -931,15 +1567,15 @@ export const mockApi = {
       | POST /api/auth/login
       |--------------------------------------------------------------------------
       |
-      | VanDrishti intentionally does NOT have:
+      | VanDrishti intentionally has ONLY:
+      |
+      | Forest Officer ID + Password
+      |
+      | No:
       |
       | - Admin login
       | - Public registration
-      | - Multiple user login systems
-      |
-      | Authentication is based on:
-      |
-      | Forest Officer ID + Password
+      | - Multiple account types
       |
       */
 
@@ -964,13 +1600,26 @@ export const mockApi = {
         }
 
 
+        const officers =
+          safeArray(
+            mockDB.forestOfficers
+          );
+
+
         const officer =
-          mockDB.forestOfficers.find(
-            (item) =>
-              item.id
-                .toLowerCase() ===
-              officerId
-                .toLowerCase()
+          officers.find(
+            (item) => {
+
+              return (
+                String(
+                  item.id
+                ).toLowerCase() ===
+                String(
+                  officerId
+                ).toLowerCase()
+              );
+
+            }
           );
 
 
@@ -1009,14 +1658,9 @@ export const mockApi = {
         }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | MOCK SESSION
-        |--------------------------------------------------------------------------
-        |
-        | Production backend can replace this with JWT/session authentication.
-        |
-        */
+        // --------------------------------------------------------------------
+        // MOCK SESSION
+        // --------------------------------------------------------------------
 
         const sessionId =
           `MOCK-SESSION-${officer.id}-${Date.now()}`;
@@ -1079,9 +1723,9 @@ export const mockApi = {
       | IMPORTANT BACKEND CONTRACT
       |--------------------------------------------------------------------------
       |
-      | This endpoint DOES NOT receive the huge ZIP directly.
+      | This endpoint DOES NOT receive the huge ZIP file directly.
       |
-      | The correct production workflow is:
+      | Production workflow:
       |
       | Frontend
       |    ↓
@@ -1098,6 +1742,11 @@ export const mockApi = {
       | Upload complete
       |    ↓
       | Backend creates processing job
+      |
+      |--------------------------------------------------------------------------
+      |
+      | This is important because VanDrishti may process 100,000+
+      | camera-trap images in a single collection.
       |
       */
 
@@ -1216,13 +1865,13 @@ export const mockApi = {
       | POST /api/reviews/:reviewId/decision
       |--------------------------------------------------------------------------
       |
-      | Future human-in-the-loop workflow.
+      | Human-in-the-loop verification.
       |
-      | Example:
+      | Example request:
       |
       | {
-      |    decision: "confirmed",
-      |    tigerId: "TGR-024"
+      |   decision: "confirmed",
+      |   tigerId: "TGR-024"
       | }
       |
       */
@@ -1243,6 +1892,16 @@ export const mockApi = {
             reviewMatch[1];
 
 
+          const decision =
+            body?.decision ||
+            null;
+
+
+          const tigerId =
+            body?.tigerId ||
+            null;
+
+
           return successResponse({
 
             reviewId,
@@ -1253,13 +1912,9 @@ export const mockApi = {
             message:
               "Mock review decision recorded.",
 
-            decision:
-              body?.decision ||
-              null,
+            decision,
 
-            tigerId:
-              body?.tigerId ||
-              null,
+            tigerId,
 
           });
 
@@ -1295,11 +1950,12 @@ export const mockApi = {
     | PUT PLACEHOLDER
     |--------------------------------------------------------------------------
     |
-    | Future examples:
+    | Future production endpoints:
     |
     | PUT /api/tigers/:id
     | PUT /api/cameras/:id
     | PUT /api/alerts/:id
+    | PUT /api/reviews/:id
     |
     */
 
@@ -1341,7 +1997,7 @@ export const mockApi = {
     | DELETE PLACEHOLDER
     |--------------------------------------------------------------------------
     |
-    | Wildlife evidence should generally not be permanently deleted.
+    | Wildlife evidence should generally NOT be permanently deleted.
     |
     | Production backend should prefer:
     |
