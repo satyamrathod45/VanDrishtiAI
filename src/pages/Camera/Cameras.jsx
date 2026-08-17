@@ -630,11 +630,10 @@ function CameraCard({
 
 
         <div
-          className={`rounded-full px-3 py-1.5 text-[8px] font-semibold ${
-            collectionDue
+          className={`rounded-full px-3 py-1.5 text-[8px] font-semibold ${collectionDue
               ? "bg-[#fff1e4] text-[#c96b1d]"
               : "bg-[#edf7ef] text-[#579365]"
-          }`}
+            }`}
         >
 
           {collectionDue
@@ -733,11 +732,10 @@ function DataPoint({
       </p>
 
       <p
-        className={`mt-1 text-[10px] font-semibold ${
-          accent
+        className={`mt-1 text-[10px] font-semibold ${accent
             ? "text-[#e97813]"
             : "text-[#555]"
-        }`}
+          }`}
       >
         {value}
       </p>
@@ -831,11 +829,10 @@ function ProcessingJob({
 
 
         <div
-          className={`rounded-full px-3 py-1.5 text-[8px] font-semibold ${
-            isProcessing
+          className={`rounded-full px-3 py-1.5 text-[8px] font-semibold ${isProcessing
               ? "bg-[#fff1e4] text-[#c96b1d]"
               : "bg-[#edf7ef] text-[#579365]"
-          }`}
+            }`}
         >
 
           {isProcessing
@@ -1025,19 +1022,18 @@ function ImportModal({
                 onClick={() =>
                   setSourceType("zip")
                 }
-                className={`rounded-2xl border p-4 text-left transition ${
-                  sourceType ===
-                  "zip"
+                className={`rounded-2xl border p-4 text-left transition ${sourceType ===
+                    "zip"
                     ? "border-[#e97813] bg-[#fff8f1]"
                     : "border-[#eeeeec] bg-white"
-                }`}
+                  }`}
               >
 
                 <Archive
                   size={17}
                   className={
                     sourceType ===
-                    "zip"
+                      "zip"
                       ? "text-[#e97813]"
                       : "text-[#777]"
                   }
@@ -1061,19 +1057,18 @@ function ImportModal({
                     "individual"
                   )
                 }
-                className={`rounded-2xl border p-4 text-left transition ${
-                  sourceType ===
-                  "individual"
+                className={`rounded-2xl border p-4 text-left transition ${sourceType ===
+                    "individual"
                     ? "border-[#e97813] bg-[#fff8f1]"
                     : "border-[#eeeeec] bg-white"
-                }`}
+                  }`}
               >
 
                 <CameraIcon
                   size={17}
                   className={
                     sourceType ===
-                    "individual"
+                      "individual"
                       ? "text-[#e97813]"
                       : "text-[#777]"
                   }
@@ -1207,11 +1202,10 @@ function ImportModal({
               onDrop={
                 handleDrop
               }
-              className={`mt-2 flex min-h-[170px] cursor-pointer flex-col items-center justify-center rounded-[24px] border-2 border-dashed p-6 text-center transition ${
-                dragging
+              className={`mt-2 flex min-h-[170px] cursor-pointer flex-col items-center justify-center rounded-[24px] border-2 border-dashed p-6 text-center transition ${dragging
                   ? "border-[#e97813] bg-[#fff8f1]"
                   : "border-[#dededb] bg-[#fafaf8]"
-              }`}
+                }`}
             >
 
               <input
@@ -1219,7 +1213,7 @@ function ImportModal({
                 className="hidden"
                 accept={
                   sourceType ===
-                  "zip"
+                    "zip"
                     ? ".zip"
                     : ".jpg,.jpeg,.png"
                 }
@@ -1271,7 +1265,7 @@ function ImportModal({
 
                   <p className="mt-3 text-[8px] text-[#aaa]">
                     {sourceType ===
-                    "zip"
+                      "zip"
                       ? "ZIP archives recommended for large datasets"
                       : "JPG, JPEG or PNG images"}
 
@@ -1431,7 +1425,7 @@ function formatBytes(
   const index =
     Math.floor(
       Math.log(bytes) /
-        Math.log(1024)
+      Math.log(1024)
     );
 
   return (

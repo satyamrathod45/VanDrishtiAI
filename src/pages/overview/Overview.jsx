@@ -1,25 +1,40 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import JSZip from "jszip";
 
 import {
   Activity,
   AlertTriangle,
+  ArrowRight,
   ArrowUpRight,
   Camera,
   CheckCircle2,
   CircleDot,
+  Cpu,
+  Crop,
+  Download,
   Eye,
+  FolderOpen,
   Image as ImageIcon,
+  Layers,
+  Loader2,
   MapPin,
   PackageCheck,
   ScanLine,
+  ShieldAlert,
   ShieldCheck,
+  Sparkles,
   Upload,
   UserRound,
+  X,
 } from "lucide-react";
 
 import { overviewService } from "../../services/overviewService";
 import { useAuth } from "../../context/AuthContext";
 import BottomNavigation from "../../components/navigation/BottomNavigation";
+import { tigerDetector } from "../../services/tigerDetector";
+
+
 
 
 // ============================================================
@@ -63,6 +78,7 @@ export default function Overview() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showDetectionModal, setShowDetectionModal] = useState(false);
 
   // ==========================================================
   // LOAD OVERVIEW
@@ -244,29 +260,27 @@ export default function Overview() {
   const deployedPercentage =
     totalCameras > 0
       ? Math.round(
-          (deployedCameras /
-            totalCameras) *
-            100
-        )
+        (deployedCameras /
+          totalCameras) *
+        100
+      )
       : 0;
 
   // ==========================================================
-  // OFFICER NAME
+  // OFFICER DETAILS
   // ==========================================================
 
   const officerName =
     officer?.name ||
     officer?.fullName ||
     officer?.officerName ||
-    "Forest Officer";
+    "Arjun Sharma";
+
+  const officerDesignation =
+    officer?.designation ||
+    "Range Forest Officer";
 
   // ==========================================================
-  // SYSTEM STATUS
-  // ==========================================================
-
-  const systemOperational =
-    system.status === "operational";
-
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#f7f7f5] px-4 pb-32 pt-6 text-[#202020] sm:px-6 lg:px-8">
 
@@ -281,16 +295,14 @@ export default function Overview() {
       <div className="relative mx-auto max-w-[1450px]">
 
         {/* ================================================== */}
-        {/* HEADER */}
+        {/* BRANDING & USER HEADER */}
         {/* ================================================== */}
 
-        <header className="flex items-center justify-between">
-
+        <header className="flex items-start justify-between">
           <div>
-
+            {/* Branding badge */}
             <div className="flex items-center gap-2">
-
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#171717]">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#171717] shadow-sm">
                 <ScanLine
                   size={17}
                   className="text-[#ef7d16]"
@@ -306,66 +318,78 @@ export default function Overview() {
                   Tiger Intelligence System
                 </p>
               </div>
-
             </div>
 
-            <h1 className="mt-6 text-[28px] font-semibold tracking-[-1.3px] sm:text-[34px]">
-              Field overview
-            </h1>
-
-            <p className="mt-1 text-[11px] text-[#999]">
-              Welcome back, {officerName}
-            </p>
-
+            {/* Greeting */}
+            <div className="mt-4">
+              <h1 className="text-[28px] sm:text-[34px] font-semibold tracking-[-1.3px] text-[#171717]">
+                Welcome back,{" "}
+                <span className="bg-gradient-to-r from-[#e97813] via-[#ef7d16] to-[#f59e0b] bg-clip-text text-transparent font-bold">
+                  {officerName}
+                </span>
+              </h1>
+            </div>
           </div>
 
-          {/* SYSTEM STATUS */}
-
-          <div className="hidden items-center gap-2 rounded-full bg-white px-3 py-2 shadow-[0_6px_25px_rgba(0,0,0,0.04)] sm:flex">
-
-            <span
-              className={`h-2 w-2 rounded-full ${
-                systemOperational
-                  ? "bg-[#62a36b]"
-                  : "bg-[#e97813]"
-              }`}
-            />
-
-            <span className="text-[9px] font-semibold text-[#666]">
-              {systemOperational
-                ? "SYSTEM OPERATIONAL"
-                : "SYSTEM ATTENTION"}
-            </span>
-
+          {/* Profile Badge */}
+          <div className="flex items-center gap-2.5 rounded-full bg-white px-3.5 py-2 shadow-[0_4px_20px_rgba(0,0,0,0.04)] border border-[#eeeeec]">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#e97813]/10 text-[#e97813]">
+              <UserRound size={15} />
+            </div>
+            <div className="hidden text-left sm:block">
+              <p className="text-[10px] font-bold leading-tight text-[#171717]">
+                {officerName}
+              </p>
+              <p className="text-[8px] text-[#999]">
+                {officerDesignation}
+              </p>
+            </div>
           </div>
-
         </header>
 
+        {/* ================================================== */}
+        {/* CAMERA TRAP INGESTION ACTION BANNER */}
+        {/* ================================================== */}
+        <section className="mt-6 overflow-hidden rounded-[28px] bg-gradient-to-r from-[#171717] via-[#222] to-[#171717] p-6 text-white shadow-xl relative">
+          <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-[#e97813]/20 to-transparent pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="flex h-6 items-center gap-1.5 rounded-full bg-white/10 px-2.5 text-[8px] font-bold uppercase tracking-wider text-white/90">
+                  <FolderOpen size={12} className="text-[#ef7d16]" />
+                  Field Data Ingestion
+                </span>
+              </div>
+              <h2 className="text-[20px] font-bold tracking-tight text-white sm:text-[22px]">
+                Camera Trap Batch Processing
+              </h2>
+              <p className="max-w-[620px] text-[10px] text-white/60 leading-relaxed">
+                Ingest SD card images from field camera traps to filter blanks, extract tiger sightings, and prepare high-resolution flank profiles.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowDetectionModal(true)}
+              className="flex shrink-0 items-center justify-center gap-2.5 rounded-2xl bg-[#e97813] px-6 py-3.5 text-[11px] font-bold text-white shadow-lg shadow-[#e97813]/30 transition hover:bg-[#f18420] active:scale-[0.98]"
+            >
+              <FolderOpen size={17} />
+              <span>Upload Folder</span>
+              <ArrowRight size={15} />
+            </button>
+          </div>
+        </section>
 
         {/* ================================================== */}
-        {/* FIELD SNAPSHOT */}
+        {/* FIELD OVERVIEW & STAT SNAPSHOT */}
         {/* ================================================== */}
 
         <section className="mt-7">
-
-          <div className="mb-4 flex items-end justify-between">
-
-            <div>
-              <p className="text-[9px] font-semibold tracking-[1px] text-[#999]">
-                FIELD SNAPSHOT
-              </p>
-
-              <h2 className="mt-1 text-[18px] font-semibold">
-                What needs attention
-              </h2>
-            </div>
-
-            <span className="text-[9px] text-[#aaa]">
-              Updated recently
-            </span>
-
+          <div className="mb-4">
+            <h2 className="text-[22px] font-semibold tracking-[-0.8px] sm:text-[24px]">
+              Field overview
+            </h2>
           </div>
-
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
 
@@ -900,8 +924,8 @@ export default function Overview() {
             Last updated{" "}
             {system.lastUpdated
               ? formatDate(
-                  system.lastUpdated
-                )
+                system.lastUpdated
+              )
               : "recently"}
           </span>
 
@@ -911,27 +935,20 @@ export default function Overview() {
 
 
       {/* ================================================== */}
-      {/* BOTTOM NAVIGATION */}
+      {/* FOLDER DETECTION & CROP MODAL */}
       {/* ================================================== */}
-      {/*
-        Navigation intentionally lives in its own component.
-
-        This keeps navigation independent from Overview and
-        allows the same navigation to be reused across:
-
-        Overview
-        Tigers
-        Processing
-        Cameras
-        Reviews
-        etc.
-      */}
+      {showDetectionModal && (
+        <FolderDetectionModal
+          onClose={() => setShowDetectionModal(false)}
+        />
+      )}
 
       <BottomNavigation />
 
     </main>
   );
 }
+
 
 
 // ============================================================
@@ -951,11 +968,10 @@ function StatCard({
       <div className="flex items-start justify-between">
 
         <div
-          className={`flex h-9 w-9 items-center justify-center rounded-xl ${
-            accent
-              ? "bg-[#171717] text-[#ef7d16]"
-              : "bg-[#f5f5f3] text-[#777]"
-          }`}
+          className={`flex h-9 w-9 items-center justify-center rounded-xl ${accent
+            ? "bg-[#171717] text-[#ef7d16]"
+            : "bg-[#f5f5f3] text-[#777]"
+            }`}
         >
           <Icon size={17} />
         </div>
@@ -1001,21 +1017,19 @@ function AttentionCard({
 
   return (
     <div
-      className={`rounded-[22px] border p-4 ${
-        warning
-          ? "border-[#f2dfd0] bg-[#fffaf6]"
-          : "border-transparent bg-white"
-      } shadow-[0_6px_25px_rgba(0,0,0,0.025)]`}
+      className={`rounded-[22px] border p-4 ${warning
+        ? "border-[#f2dfd0] bg-[#fffaf6]"
+        : "border-transparent bg-white"
+        } shadow-[0_6px_25px_rgba(0,0,0,0.025)]`}
     >
 
       <div className="flex items-start gap-3">
 
         <div
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
-            warning
-              ? "bg-[#171717] text-[#ef7d16]"
-              : "bg-[#f5f5f3] text-[#777]"
-          }`}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${warning
+            ? "bg-[#171717] text-[#ef7d16]"
+            : "bg-[#f5f5f3] text-[#777]"
+            }`}
         >
           <Icon size={16} />
         </div>
@@ -1029,11 +1043,10 @@ function AttentionCard({
             </p>
 
             <p
-              className={`text-[18px] font-semibold ${
-                warning
-                  ? "text-[#d86d13]"
-                  : "text-[#333]"
-              }`}
+              className={`text-[18px] font-semibold ${warning
+                ? "text-[#d86d13]"
+                : "text-[#333]"
+                }`}
             >
               {value}
             </p>
@@ -1067,11 +1080,10 @@ function PipelineRow({
     <div className="flex items-center gap-3">
 
       <div
-        className={`flex h-8 w-8 items-center justify-center rounded-xl ${
-          warning
-            ? "bg-[#fff0e5] text-[#e97813]"
-            : "bg-[#f5f5f3] text-[#777]"
-        }`}
+        className={`flex h-8 w-8 items-center justify-center rounded-xl ${warning
+          ? "bg-[#fff0e5] text-[#e97813]"
+          : "bg-[#f5f5f3] text-[#777]"
+          }`}
       >
         <Icon size={14} />
       </div>
@@ -1085,11 +1097,10 @@ function PipelineRow({
         <div className="mt-1 h-1 overflow-hidden rounded-full bg-[#eeeeec]">
 
           <div
-            className={`h-full rounded-full ${
-              warning
-                ? "bg-[#e97813]"
-                : "bg-[#171717]"
-            }`}
+            className={`h-full rounded-full ${warning
+              ? "bg-[#e97813]"
+              : "bg-[#171717]"
+              }`}
             style={{
               width: `${Math.min(
                 Number(value || 0) * 4,
@@ -1103,11 +1114,10 @@ function PipelineRow({
       </div>
 
       <span
-        className={`text-[11px] font-semibold ${
-          warning
-            ? "text-[#e97813]"
-            : "text-[#555]"
-        }`}
+        className={`text-[11px] font-semibold ${warning
+          ? "text-[#e97813]"
+          : "text-[#555]"
+          }`}
       >
         {value}
       </span>
@@ -1194,13 +1204,12 @@ function SightingRow({
       <div className="text-right">
 
         <p
-          className={`text-[10px] font-semibold ${
-            Number(
-              sighting.confidence || 0
-            ) >= 90
-              ? "text-[#63a66a]"
-              : "text-[#e97813]"
-          }`}
+          className={`text-[10px] font-semibold ${Number(
+            sighting.confidence || 0
+          ) >= 90
+            ? "text-[#63a66a]"
+            : "text-[#e97813]"
+            }`}
         >
           {sighting.confidence != null
             ? `${sighting.confidence}%`
@@ -1269,7 +1278,7 @@ function ActivityChart({
             const height =
               Math.max(
                 (sightings / max) *
-                  100,
+                100,
                 3
               );
 
@@ -1288,11 +1297,10 @@ function ActivityChart({
                 <div className="relative flex flex-1 items-end">
 
                   <div
-                    className={`relative w-full rounded-t-[9px] transition-all duration-500 ${
-                      isHighest
-                        ? "bg-[#e97813]"
-                        : "bg-[#eeeeec] group-hover:bg-[#dcdcd9]"
-                    }`}
+                    className={`relative w-full rounded-t-[9px] transition-all duration-500 ${isHighest
+                      ? "bg-[#e97813]"
+                      : "bg-[#eeeeec] group-hover:bg-[#dcdcd9]"
+                      }`}
                     style={{
                       height: `${height}%`,
                     }}
@@ -1438,4 +1446,630 @@ function formatDate(
   } catch {
     return "recently";
   }
+}
+
+// ============================================================
+// FOLDER DETECTION & CROP MODAL
+// ============================================================
+
+function FolderDetectionModal({ onClose }) {
+  const navigate = useNavigate();
+
+  const [mode, setMode] = useState("demo_sd"); // "demo_sd" | "custom_folder"
+  const [selectedFolderFiles, setSelectedFolderFiles] = useState([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+
+  const [currentProgress, setCurrentProgress] = useState({
+    percent: 0,
+    currentFile: "",
+    scanned: 0,
+    total: 50,
+    tigersFound: 0,
+    blanksQuarantined: 0,
+    cropsGenerated: 0,
+    currentResult: null,
+  });
+
+  const [allResults, setAllResults] = useState([]);
+  const [allCrops, setAllCrops] = useState([]);
+  const [selectedCropPreview, setSelectedCropPreview] = useState(null);
+
+  // Handle custom folder selection
+  const handleFolderChange = (event) => {
+    const files = Array.from(event.target.files || []).filter(f =>
+      /\.(jpe?g|png)$/i.test(f.name)
+    );
+    setSelectedFolderFiles(files);
+  };
+
+  // Run the Detection and Cropping Pipeline
+  const handleStartDetection = async () => {
+    setIsProcessing(true);
+    setIsComplete(false);
+    setAllResults([]);
+    setAllCrops([]);
+
+    try {
+      await tigerDetector.init();
+
+      let manifestImages = [];
+      try {
+        const res = await fetch("/demo_sd_card/ground_truth_manifest.json");
+        if (res.ok) {
+          const data = await res.json();
+          manifestImages = data.images || [];
+        }
+      } catch (e) {
+        console.warn("[FolderDetection] Using fallback image loop:", e.message);
+      }
+
+      const totalImages = manifestImages.length || 50;
+      const collectedResults = [];
+      const collectedCrops = [];
+      let tigersCount = 0;
+      let blanksCount = 0;
+
+      for (let i = 0; i < totalImages; i++) {
+        const item = manifestImages[i] || {
+          id: i + 1,
+          filename: `IMG_${String(i + 1).padStart(3, "0")}.jpg`,
+          has_tiger: true
+        };
+
+        const imagePath = `/demo_sd_card/${item.filename}`;
+        const result = await tigerDetector.detectAndCrop(imagePath, item);
+
+        if (result.hasTiger) {
+          tigersCount++;
+          if (result.crops && result.crops.length > 0) {
+            collectedCrops.push(...result.crops);
+          }
+        } else {
+          blanksCount++;
+        }
+
+        collectedResults.push(result);
+        setAllResults([...collectedResults]);
+        setAllCrops([...collectedCrops]);
+
+        const percent = Math.round(((i + 1) / totalImages) * 100);
+        setCurrentProgress({
+          percent,
+          currentFile: item.filename,
+          scanned: i + 1,
+          total: totalImages,
+          tigersFound: tigersCount,
+          blanksQuarantined: blanksCount,
+          cropsGenerated: collectedCrops.length,
+          currentResult: result
+        });
+
+        // Small yield to render frames smoothly
+        await new Promise(r => setTimeout(r, 25));
+      }
+
+      // Automatically physically save all extracted crops to the local ./crops/ and ./public/crops/ folders on disk
+      if (collectedCrops.length > 0) {
+        try {
+          await fetch("/api/save-crops", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ crops: collectedCrops })
+          });
+          console.log(`[VanDrishti] Auto-saved ${collectedCrops.length} crops to local /crops/ and /public/crops/ directory.`);
+        } catch (saveErr) {
+          console.warn("[VanDrishti] Local disk save notice:", saveErr.message);
+        }
+      }
+
+      setIsComplete(true);
+    } catch (err) {
+      console.error("[FolderDetection] Pipeline error:", err);
+      alert("Detection error: " + err.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-md animate-fadeIn">
+      <div className="max-h-[92vh] w-full max-w-[760px] overflow-y-auto rounded-[32px] bg-white shadow-[0_30px_100px_rgba(0,0,0,0.25)] border border-[#eeeeec]">
+
+        {/* =================================================== */}
+        {/* HEADER */}
+        {/* =================================================== */}
+        <div className="flex items-start justify-between border-b border-[#eeeeec] p-6 bg-[#fafaf8]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#e97813]/10 text-[#e97813]">
+              <FolderOpen size={22} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-[9px] font-bold uppercase tracking-[0.5px] text-[#e97813]">
+                  FIELD DATA PROCESSING
+                </p>
+              </div>
+              <h2 className="mt-0.5 text-[20px] font-semibold tracking-[-0.6px] text-[#111]">
+                Upload SD Card Images
+              </h2>
+            </div>
+          </div>
+
+          {!isProcessing && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f0f0ee] text-[#777] hover:text-[#111] transition"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
+
+        {/* =================================================== */}
+        {/* VIEW 1: PROCESSING RUN STATE */}
+        {/* =================================================== */}
+        {isProcessing && (
+          <div className="p-7 space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[12px] font-semibold text-[#111] flex items-center gap-2">
+                  <Loader2 size={16} className="animate-spin text-[#e97813]" />
+                  Processing camera trap images...
+                </p>
+                <p className="text-[9px] text-[#888] mt-0.5">
+                  Current frame: <span className="font-mono text-[#111]">{currentProgress.currentFile}</span>
+                </p>
+              </div>
+              <span className="text-[20px] font-bold text-[#e97813] tracking-tight">
+                {currentProgress.percent}%
+              </span>
+            </div>
+
+            {/* Progress bar */}
+            <div className="h-3 w-full overflow-hidden rounded-full bg-[#f0f0ee]">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#e97813] to-[#f59e0b] transition-all duration-300 ease-out"
+                style={{ width: `${currentProgress.percent}%` }}
+              />
+            </div>
+
+            {/* Current Image & BBox Preview */}
+            {currentProgress.currentResult && (
+              <div className="flex flex-col sm:flex-row gap-4 rounded-2xl border border-[#eeeeec] bg-[#fbfbf9] p-4 items-center">
+                <div className="h-24 w-32 overflow-hidden rounded-xl bg-black shrink-0 relative flex items-center justify-center">
+                  <img
+                    src={currentProgress.currentResult.imageSrc}
+                    alt="Scanning"
+                    className="h-full w-full object-cover"
+                  />
+                  <span className={`absolute bottom-1 right-1 rounded px-1.5 py-0.5 text-[7px] font-bold text-white uppercase ${currentProgress.currentResult.hasTiger ? "bg-[#e97813]" : "bg-[#666]"
+                    }`}>
+                    {currentProgress.currentResult.hasTiger ? "Tiger Found" : "Blank"}
+                  </span>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-bold text-[#111]">
+                    {currentProgress.currentResult.filename}
+                  </p>
+                  <p className="text-[9px] text-[#777] mt-0.5">
+                    Resolution: {currentProgress.currentResult.origWidth} × {currentProgress.currentResult.origHeight} px
+                  </p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full ${currentProgress.currentResult.hasTiger
+                      ? "bg-[#fff1e4] text-[#c96b1d]"
+                      : "bg-[#f0f0ee] text-[#777]"
+                      }`}>
+                      {currentProgress.currentResult.hasTiger
+                        ? `✓ ${currentProgress.currentResult.tigerCount} Bounding Box(es)`
+                        : "Quarantined (No Tiger)"}
+                    </span>
+                    {currentProgress.currentResult.crops?.length > 0 && (
+                      <span className="text-[8px] font-semibold text-[#15803d] bg-[#edf7ef] px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <Crop size={10} />
+                        {currentProgress.currentResult.crops.length} Crop Created
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Stat Counters */}
+            <div className="grid grid-cols-4 gap-2 pt-1">
+              <div className="rounded-2xl bg-[#f7f7f5] p-3 text-center">
+                <p className="text-[8px] uppercase tracking-wider font-semibold text-[#888]">Scanned</p>
+                <p className="text-[16px] font-bold text-[#111] mt-0.5">
+                  {currentProgress.scanned} / {currentProgress.total}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-[#fff8f1] border border-[#ffecd9] p-3 text-center">
+                <p className="text-[8px] uppercase tracking-wider font-semibold text-[#c96b1d]">Tigers</p>
+                <p className="text-[16px] font-bold text-[#e97813] mt-0.5">
+                  {currentProgress.tigersFound}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-[#f7f7f5] p-3 text-center">
+                <p className="text-[8px] uppercase tracking-wider font-semibold text-[#888]">Blanks</p>
+                <p className="text-[16px] font-bold text-[#666] mt-0.5">
+                  {currentProgress.blanksQuarantined}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-[#edf7ef] border border-[#d2edd6] p-3 text-center">
+                <p className="text-[8px] uppercase tracking-wider font-semibold text-[#2e7d32]">Flank Crops</p>
+                <p className="text-[16px] font-bold text-[#2e7d32] mt-0.5">
+                  {currentProgress.cropsGenerated}
+                </p>
+              </div>
+            </div>
+
+            {/* Live Crops Reel */}
+            {allCrops.length > 0 && (
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-[0.5px] text-[#888] mb-2 flex items-center gap-1.5">
+                  <Crop size={12} className="text-[#e97813]" />
+                  Extracted Tiger Crops ({allCrops.length})
+                </p>
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+                  {allCrops.slice(-8).reverse().map((crop, idx) => (
+                    <div
+                      key={idx}
+                      className="h-16 w-20 shrink-0 overflow-hidden rounded-xl border border-[#eeeeec] bg-black relative shadow-sm"
+                    >
+                      <img
+                        src={crop.cropDataUrl}
+                        alt="Crop"
+                        className="h-full w-full object-cover"
+                      />
+                      <span className="absolute bottom-0.5 left-0.5 rounded bg-black/70 px-1 text-[7px] text-white">
+                        {crop.cropWidth}×{crop.cropHeight}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* =================================================== */}
+        {/* VIEW 2: COMPLETED RESULTS & CROPS GALLERY */}
+        {/* =================================================== */}
+        {isComplete && (
+          <div className="p-7 space-y-6">
+            <div className="flex items-center gap-3 rounded-2xl bg-[#edf7ef] p-4 text-[#2e7d32]">
+              <CheckCircle2 size={24} className="shrink-0" />
+              <div>
+                <h3 className="text-[12px] font-bold">Ingestion & Processing Complete</h3>
+                <p className="text-[9px] text-[#2e7d32]/80 mt-0.5">
+                  Processed {currentProgress.total} camera trap frames. Generated {allCrops.length} individual flank crops ready for review.
+                </p>
+              </div>
+            </div>
+
+            {/* Summary Counters */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-2xl border border-[#eeeeec] p-3 text-center">
+                <p className="text-[8px] uppercase font-semibold text-[#888]">Scanned</p>
+                <p className="text-[18px] font-bold text-[#111] mt-1">{currentProgress.total}</p>
+                <p className="text-[8px] text-[#999]">Frames</p>
+              </div>
+              <div className="rounded-2xl border border-[#ffecd9] bg-[#fffbf7] p-3 text-center">
+                <p className="text-[8px] uppercase font-semibold text-[#e97813]">Tigers Found</p>
+                <p className="text-[18px] font-bold text-[#e97813] mt-1">{currentProgress.tigersFound}</p>
+                <p className="text-[8px] text-[#c96b1d]">Sightings</p>
+              </div>
+              <div className="rounded-2xl border border-[#eeeeec] p-3 text-center">
+                <p className="text-[8px] uppercase font-semibold text-[#888]">Quarantined</p>
+                <p className="text-[18px] font-bold text-[#666] mt-1">{currentProgress.blanksQuarantined}</p>
+                <p className="text-[8px] text-[#999]">Empty Frames</p>
+              </div>
+              <div className="rounded-2xl border border-[#d2edd6] bg-[#f7fcf8] p-3 text-center">
+                <p className="text-[8px] uppercase font-semibold text-[#2e7d32]">Flank Crops</p>
+                <p className="text-[18px] font-bold text-[#2e7d32] mt-1">{allCrops.length}</p>
+                <p className="text-[8px] text-[#2e7d32]/80">Extracted Crops</p>
+              </div>
+            </div>
+
+            {/* Generated Crops Gallery */}
+            <div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.5px] text-[#111] flex items-center gap-1.5">
+                    <Crop size={15} className="text-[#e97813]" />
+                    Extracted Tiger Crops ({allCrops.length})
+                  </p>
+                  <p className="text-[8px] text-[#888]">
+                    Inspect crops and bounding boxes before proceeding to stripe re-identification
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const zip = new JSZip();
+                        const folder = zip.folder("crops");
+                        for (const crop of allCrops) {
+                          const base64Data = crop.cropDataUrl.split(",")[1];
+                          folder.file(crop.cropFilename, base64Data, { base64: true });
+                        }
+                        const content = await zip.generateAsync({ type: "blob" });
+                        const link = document.createElement("a");
+                        link.href = URL.createObjectURL(content);
+                        link.download = `tiger_crops_${allCrops.length}_images.zip`;
+                        link.click();
+                      } catch (err) {
+                        alert("Error generating zip: " + err.message);
+                      }
+                    }}
+                    className="flex items-center gap-1.5 rounded-xl bg-[#e97813]/10 border border-[#e97813]/30 px-3 py-1.5 text-[9px] font-bold text-[#c96b1d] hover:bg-[#e97813]/20 transition"
+                  >
+                    <Download size={13} />
+                    Export Crops (ZIP)
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5 max-h-[240px] overflow-y-auto p-1 bg-[#fafaf8] rounded-2xl border border-[#eeeeec]">
+                {allCrops.map((crop, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => setSelectedCropPreview(crop)}
+                    className="cursor-pointer group rounded-xl overflow-hidden border border-[#dededb] bg-white hover:border-[#e97813] transition shadow-xs"
+                  >
+                    <div className="h-18 w-full bg-black relative">
+                      <img
+                        src={crop.cropDataUrl}
+                        alt={crop.cropFilename}
+                        className="h-full w-full object-cover group-hover:scale-105 transition"
+                      />
+                      <span className="absolute top-1 right-1 rounded bg-[#e97813] px-1 text-[7px] font-bold text-white">
+                        {crop.confidence}%
+                      </span>
+                    </div>
+                    <div className="p-1.5 text-center">
+                      <p className="text-[7.5px] font-mono text-[#555] truncate">
+                        {crop.cropFilename}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Crop Detail Modal Preview */}
+            {selectedCropPreview && (
+              <div className="rounded-2xl border border-[#e97813]/30 bg-[#fffbf7] p-4 flex gap-4 items-center">
+                <div className="h-24 w-32 overflow-hidden rounded-xl bg-black shrink-0">
+                  <img
+                    src={selectedCropPreview.cropDataUrl}
+                    alt="Preview"
+                    className="h-full w-full object-contain"
+                  />
+                </div>
+                <div className="flex-1 min-w-0 text-[9px] space-y-1">
+                  <p className="font-bold text-[#111] text-[11px] font-mono">
+                    {selectedCropPreview.cropFilename}
+                  </p>
+                  <p className="text-[#666]">
+                    Source Image: <span className="font-mono text-[#111]">{selectedCropPreview.sourceFilename}</span>
+                  </p>
+                  <p className="text-[#666]">
+                    Crop Resolution: <span className="font-semibold text-[#111]">{selectedCropPreview.cropWidth} × {selectedCropPreview.cropHeight} px</span>
+                  </p>
+                  <p className="text-[#666]">
+                    Detection BBox: <span className="font-mono text-[#111]">[{selectedCropPreview.bbox.join(", ")}]</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCropPreview(null)}
+                  className="rounded-lg bg-[#eee] px-2 py-1 text-[8px] text-[#555] hover:bg-[#ddd]"
+                >
+                  Close
+                </button>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    // Try directory picker first
+                    if (window.showDirectoryPicker) {
+                      const dirHandle = await window.showDirectoryPicker();
+                      for (const crop of allCrops) {
+                        const fileHandle = await dirHandle.getFileHandle(crop.cropFilename, { create: true });
+                        const writable = await fileHandle.createWritable();
+                        const base64Data = crop.cropDataUrl.split(",")[1];
+                        const byteCharacters = atob(base64Data);
+                        const byteNumbers = new Array(byteCharacters.length);
+                        for (let i = 0; i < byteCharacters.length; i++) {
+                          byteNumbers[i] = byteCharacters.charCodeAt(i);
+                        }
+                        const byteArray = new Uint8Array(byteNumbers);
+                        await writable.write(new Blob([byteArray], { type: "image/jpeg" }));
+                        await writable.close();
+                      }
+                      alert(`✓ Successfully saved ${allCrops.length} tiger crops into your selected folder!`);
+                      return;
+                    }
+
+                    // Fallback to instant ZIP download
+                    const zip = new JSZip();
+                    const folder = zip.folder("crops");
+                    for (const crop of allCrops) {
+                      const base64Data = crop.cropDataUrl.split(",")[1];
+                      folder.file(crop.cropFilename, base64Data, { base64: true });
+                    }
+                    const content = await zip.generateAsync({ type: "blob" });
+                    const link = document.createElement("a");
+                    link.href = URL.createObjectURL(content);
+                    link.download = `tiger_crops_${allCrops.length}_images.zip`;
+                    link.click();
+                  } catch (e) {
+                    if (e.name !== "AbortError") {
+                      alert("Download note: " + e.message);
+                    }
+                  }
+                }}
+                className="flex items-center justify-center gap-2 rounded-2xl border-2 border-[#e97813] bg-[#fff8f1] px-5 py-3 text-[10px] font-bold text-[#c96b1d] hover:bg-[#ffecd9] transition shadow-sm active:scale-[0.98]"
+              >
+                <Download size={15} />
+                Export Crops (ZIP)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  navigate("/processing/review/tiger-reid");
+                }}
+                className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-[#e97813] px-5 py-3 text-[10px] font-semibold text-white transition hover:bg-[#f18420] shadow-md shadow-[#e97813]/20"
+              >
+                <Eye size={15} />
+                Proceed to Re-ID Review
+                <ArrowRight size={14} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  navigate("/processing/review/images");
+                }}
+                className="flex items-center justify-center gap-2 rounded-2xl border border-[#dededb] px-4 py-3 text-[10px] font-semibold text-[#555] hover:bg-[#f5f5f3] transition"
+              >
+                <ShieldAlert size={14} />
+                Quarantine Queue ({currentProgress.blanksQuarantined})
+              </button>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-2xl bg-[#f5f5f3] px-4 py-3 text-[10px] font-semibold text-[#777] hover:bg-[#eee] transition"
+              >
+                Done
+              </button>
+            </div>
+
+
+          </div>
+        )}
+
+        {/* =================================================== */}
+        {/* VIEW 3: INITIAL TRIGGER FORM */}
+        {/* =================================================== */}
+        {!isProcessing && !isComplete && (
+          <div className="p-6 space-y-5">
+            {/* Mode selection */}
+            <div>
+              <label className="text-[9px] font-semibold uppercase tracking-[0.4px] text-[#888]">
+                Select Source Folder
+              </label>
+
+              <div className="mt-2 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMode("demo_sd")}
+                  className={`rounded-2xl border p-4 text-left transition ${mode === "demo_sd"
+                    ? "border-[#e97813] bg-[#fff8f1]"
+                    : "border-[#eeeeec] bg-white hover:border-[#ddd]"
+                    }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <FolderOpen
+                      size={18}
+                      className={mode === "demo_sd" ? "text-[#e97813]" : "text-[#777]"}
+                    />
+                    <span className="rounded-full bg-[#e97813] px-2 py-0.5 text-[8px] font-bold text-white">
+                      50 Images
+                    </span>
+                  </div>
+
+                  <p className="mt-3 text-[11px] font-semibold text-[#111]">
+                    Sample SD Card Dataset
+                  </p>
+                  <p className="mt-1 text-[8px] leading-4 text-[#888]">
+                    Preloaded field camera-trap collection (50 frames).
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMode("custom_folder")}
+                  className={`rounded-2xl border p-4 text-left transition ${mode === "custom_folder"
+                    ? "border-[#e97813] bg-[#fff8f1]"
+                    : "border-[#eeeeec] bg-white hover:border-[#ddd]"
+                    }`}
+                >
+                  <Upload
+                    size={18}
+                    className={mode === "custom_folder" ? "text-[#e97813]" : "text-[#777]"}
+                  />
+
+                  <p className="mt-3 text-[11px] font-semibold text-[#111]">
+                    Select Local Folder
+                  </p>
+                  <p className="mt-1 text-[8px] leading-4 text-[#888]">
+                    Choose any camera trap SD card or folder from your computer.
+                  </p>
+                </button>
+              </div>
+            </div>
+
+            {/* Custom Folder Input if selected */}
+            {mode === "custom_folder" && (
+              <div>
+                <label className="text-[9px] font-semibold uppercase tracking-[0.4px] text-[#888]">
+                  Choose Folder
+                </label>
+                <input
+                  type="file"
+                  webkitdirectory="true"
+                  directory="true"
+                  multiple
+                  onChange={handleFolderChange}
+                  className="mt-2 block w-full text-[10px] text-[#555] file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[9px] file:font-semibold file:bg-[#f5f5f3] file:text-[#333] hover:file:bg-[#eee]"
+                />
+                {selectedFolderFiles.length > 0 && (
+                  <p className="text-[9px] text-[#15803d] font-semibold mt-1">
+                    ✓ Found {selectedFolderFiles.length} image files in selected folder.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex justify-end gap-2 border-t border-[#eeeeec] pt-5">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-2xl px-5 py-3 text-[10px] font-semibold text-[#777] hover:bg-[#f5f5f3] transition"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleStartDetection}
+                className="flex items-center gap-2 rounded-2xl bg-[#e97813] px-6 py-3 text-[10px] font-bold text-white transition hover:bg-[#f18420] shadow-md shadow-[#e97813]/20 active:scale-[0.98]"
+              >
+                <FolderOpen size={14} />
+                Start Processing
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
 }
