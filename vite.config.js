@@ -51,6 +51,7 @@ function saveCropsDevPlugin() {
 }
 
 export default defineConfig({
+  base: "./",
   plugins: [
     react(),
     tailwindcss(),

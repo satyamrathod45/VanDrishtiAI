@@ -1552,12 +1552,17 @@ function FolderDetectionModal({ onClose }) {
       // Automatically physically save all extracted crops to the local ./crops/ and ./public/crops/ folders on disk
       if (collectedCrops.length > 0) {
         try {
-          await fetch("/api/save-crops", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ crops: collectedCrops })
-          });
-          console.log(`[VanDrishti] Auto-saved ${collectedCrops.length} crops to local /crops/ and /public/crops/ directory.`);
+          if (window.electronAPI && typeof window.electronAPI.saveCrops === "function") {
+            const res = await window.electronAPI.saveCrops(collectedCrops);
+            console.log(`[VanDrishti] Desktop auto-saved ${res.savedCount} crops to:`, res.folder);
+          } else {
+            await fetch("/api/save-crops", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ crops: collectedCrops })
+            });
+            console.log(`[VanDrishti] Auto-saved ${collectedCrops.length} crops to local /crops/ and /public/crops/ directory.`);
+          }
         } catch (saveErr) {
           console.warn("[VanDrishti] Local disk save notice:", saveErr.message);
         }

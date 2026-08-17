@@ -1,11 +1,22 @@
 {
   "name": "vandrishtiai",
+  "productName": "VanDrishti AI",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "VanDrishti AI — AI-Powered Tiger Detection and Re-Identification System",
+  "author": "VanDrishti AI Team",
+  "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "clean": "node -e \"const fs=require('fs'); if(fs.existsSync('release')) fs.rmSync('release', {recursive:true, force:true});\"",
+    "build:exe": "npm run clean && vite build && electron-packager . \"VanDrishti AI\" --platform=win32 --arch=x64 --out=release --overwrite --asar --ignore=\"^(src|scripts|ml_models|demo_sd_card|public|\\.git)\"",
+    "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
+    "electron:build": "npm run clean && vite build && electron-builder --win",
+    "electron:build:dir": "npm run clean && vite build && electron-builder --win --dir",
+    "electron:build:portable": "npm run clean && vite build && electron-builder --win portable",
+    "electron:build:nsis": "npm run clean && vite build && electron-builder --win nsis",
     "crop": "node scripts/cropTigers.js",
     "reid:generate": "node scripts/generateEmbeddings.js",
     "reid:test": "node scripts/testReid.js",
@@ -15,7 +26,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.3.3",
     "jszip": "^3.10.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.31.0",
@@ -24,19 +34,66 @@
     "react-dom": "^19.2.8",
     "react-leaflet": "^5.0.0",
     "react-router-dom": "^7.18.2",
-    "sharp": "^0.35.3",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
+    "concurrently": "^10.0.5",
+    "cross-env": "^10.1.0",
+    "electron": "^43.4.0",
+    "electron-builder": "^26.15.3",
+    "electron-packager": "^17.1.2",
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.7.0",
+    "sharp": "^0.35.3",
     "vite": "^8.2.0",
-    "vite-plugin-static-copy": "^4.1.1"
+    "vite-plugin-static-copy": "^4.1.1",
+    "wait-on": "^9.1.0"
+  },
+  "build": {
+    "appId": "com.vandrishti.ai",
+    "productName": "VanDrishti AI",
+    "npmRebuild": false,
+    "copyright": "Copyright © 2026 VanDrishti AI",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "VanDrishti AI"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}"
+    }
   }
 }
