@@ -25,10 +25,6 @@ dist-electron
 *.sln
 *.sw?
 
-# Data, media, and ML model binary artifacts
+# Generated Crops Cache
 crops/
-demo_sd_card/
-ml_models/
-public/models/
 public/crops/
-*.onnx
