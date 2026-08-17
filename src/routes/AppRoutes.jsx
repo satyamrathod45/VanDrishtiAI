@@ -92,6 +92,7 @@ import TigerProfile from "../pages/Tigers/TigerProfile";
 
 import CameraDetails from "../pages/Camera/CameraDetails";
 import Cameras from "../pages/Camera/Cameras";
+import Alerts from "../pages/Alerts/Alerts";
 // ============================================================================
 // PROTECTED ROUTE
 // ============================================================================
@@ -308,7 +309,10 @@ export default function AppRoutes() {
         |
         |--------------------------------------------------------------------------
         */}
-
+ <Route
+          path="/alerts"
+          element={<Alerts />}
+         />
 
         {/*
         |--------------------------------------------------------------------------
