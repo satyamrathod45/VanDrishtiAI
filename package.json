@@ -10,9 +10,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "clean": "node -e \"const fs=require('fs'); if(fs.existsSync('release')) fs.rmSync('release', {recursive:true, force:true});\"",
+    "clean": "node -e \"const fs=require('fs'); try { if(fs.existsSync('release')) fs.rmSync('release', {recursive:true, force:true, maxRetries:3}); } catch(e){ console.warn('Clean notice:', e.message); }\"",
     "build:exe": "npm run clean && vite build && electron-packager . \"VanDrishti AI\" --platform=win32 --arch=x64 --out=release --overwrite --asar --ignore=\"^(src|scripts|ml_models|demo_sd_card|public|\\.git)\"",
-    "electron:dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
+    "electron:dev": "concurrently -k \"vite\" \"electron .\"",
     "electron:build": "npm run clean && vite build && electron-builder --win",
     "electron:build:dir": "npm run clean && vite build && electron-builder --win --dir",
     "electron:build:portable": "npm run clean && vite build && electron-builder --win portable",
@@ -23,6 +23,7 @@
     "search:test": "node scripts/testVectorSearch.js",
     "export:geojson": "node scripts/exportTigerGeoJson.js",
     "tiles:download": "node scripts/downloadOfflineTiles.js",
+    "ingest:atrw": "node scripts/ingest_atrw_dataset.js",
     "embed": "node scripts/generateEmbeddings.js",
     "lint": "eslint .",
     "preview": "vite preview"

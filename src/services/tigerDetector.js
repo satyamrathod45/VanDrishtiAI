@@ -12,19 +12,9 @@
 |--------------------------------------------------------------------------
 */
 
-import * as ort from "onnxruntime-web";
+import * as ortModule from "onnxruntime-web";
 
-// Explicit offline WASM binary mapping for Vite
-ort.env.wasm.wasmPaths = {
-  "ort-wasm-simd-threaded.wasm": "/wasm/ort-wasm-simd-threaded.wasm",
-  "ort-wasm-simd-threaded.jsep.wasm": "/wasm/ort-wasm-simd-threaded.jsep.wasm",
-  "ort-wasm-simd-threaded.jspi.wasm": "/wasm/ort-wasm-simd-threaded.jspi.wasm",
-  "ort-wasm-simd-threaded.asyncify.wasm": "/wasm/ort-wasm-simd-threaded.asyncify.wasm",
-  "ort-wasm.wasm": "/wasm/ort-wasm.wasm",
-  "ort-wasm-simd.wasm": "/wasm/ort-wasm-simd.wasm",
-};
-ort.env.wasm.numThreads = 1;
-
+const getOrt = () => (typeof window !== "undefined" && window.ort ? window.ort : ortModule);
 
 let detectionSession = null;
 let isSessionLoading = false;
@@ -47,6 +37,12 @@ export const tigerDetector = {
 
     isSessionLoading = true;
     try {
+      const ort = getOrt();
+      if (ort?.env?.wasm) {
+        ort.env.wasm.wasmPaths = "/wasm/";
+        ort.env.wasm.numThreads = 1;
+      }
+
       console.log("[TigerDetector] Loading tiger_detection.onnx...");
       detectionSession = await ort.InferenceSession.create("/models/tiger_detection.onnx", {
         executionProviders: ["wasm"],
@@ -64,11 +60,16 @@ export const tigerDetector = {
 
   /*
   | 2. Preprocess an image to 640x640 Float32Array Tensor
+  | @param {string} imageSrc
+  | @param {number} targetSize
+  | @param {number} contextMargin - e.g. 0 for full-frame, 0.45 for padded context pass
   */
-  async preprocessImage(imageSrc, targetSize = 640) {
+  async preprocessImage(imageSrc, targetSize = 640, contextMargin = 0) {
     return new Promise((resolve, reject) => {
       const img = new Image();
-      img.crossOrigin = "anonymous";
+      if (typeof imageSrc === "string" && (imageSrc.startsWith("http://") || imageSrc.startsWith("https://"))) {
+        img.crossOrigin = "anonymous";
+      }
       img.onload = () => {
         const origWidth = img.naturalWidth || img.width;
         const origHeight = img.naturalHeight || img.height;
@@ -78,11 +79,12 @@ export const tigerDetector = {
         canvas.height = targetSize;
         const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
-        // Letterbox (black background)
-        ctx.fillStyle = "#000000";
+        // Background color: #808080 (neutral gray) if contextual margin is applied, else black (#000000)
+        ctx.fillStyle = contextMargin > 0 ? "#808080" : "#000000";
         ctx.fillRect(0, 0, targetSize, targetSize);
 
-        const scale = Math.min(targetSize / origWidth, targetSize / origHeight);
+        const marginFactor = Math.max(0.1, 1 - contextMargin);
+        const scale = Math.min((targetSize * marginFactor) / origWidth, (targetSize * marginFactor) / origHeight);
         const newWidth = Math.round(origWidth * scale);
         const newHeight = Math.round(origHeight * scale);
         const padX = Math.round((targetSize - newWidth) / 2);
@@ -103,6 +105,7 @@ export const tigerDetector = {
           floatArray[2 * channelSize + i] = pixels[i * 4 + 2] / 255.0;   // B
         }
 
+        const ort = getOrt();
         const tensor = new ort.Tensor("float32", floatArray, [1, 3, targetSize, targetSize]);
 
         resolve({
@@ -113,10 +116,11 @@ export const tigerDetector = {
           scale,
           padX,
           padY,
-          targetSize
+          targetSize,
+          contextMargin
         });
       };
-      img.onerror = (e) => reject(new Error(`Failed to load image: ${imageSrc}`));
+      img.onerror = () => reject(new Error(`Failed to load image: ${imageSrc?.slice ? imageSrc.slice(0, 80) : imageSrc}`));
       img.src = imageSrc;
     });
   },
@@ -141,8 +145,16 @@ export const tigerDetector = {
     x2 = Math.min(origW, x2 + padW);
     y2 = Math.min(origH, y2 + padH);
 
-    const cropW = Math.max(10, x2 - x1);
-    const cropH = Math.max(10, y2 - y1);
+    // If box is invalid or collapsed, default to full image bounds
+    if (x2 <= x1 || y2 <= y1) {
+      x1 = 0;
+      y1 = 0;
+      x2 = origW;
+      y2 = origH;
+    }
+
+    const cropW = Math.max(10, Math.min(origW - x1, x2 - x1));
+    const cropH = Math.max(10, Math.min(origH - y1, y2 - y1));
 
     const canvas = document.createElement("canvas");
     canvas.width = cropW;
@@ -155,7 +167,7 @@ export const tigerDetector = {
       cropDataUrl: canvas.toDataURL("image/jpeg", 0.95),
       cropWidth: cropW,
       cropHeight: cropH,
-      adjustedBbox: [x1, y1, x2, y2]
+      adjustedBbox: [x1, y1, x1 + cropW, y1 + cropH]
     };
   },
 
@@ -202,32 +214,71 @@ export const tigerDetector = {
   },
 
   /*
-  | 5. Run Detection & Generate Crops on a Single Image
+  | 5. Internal: Evaluate YOLO tensor output and return raw candidate boxes
   */
-  async detectAndCrop(imageSrc, manifestEntry = null) {
-    await this.init();
-
-    const filename = manifestEntry?.filename || imageSrc.split("/").pop();
-    const baseName = filename.replace(/\.[^/.]+$/, "");
-
-    const prep = await this.preprocessImage(imageSrc, 640);
+  async _evaluateTensor(prep, threshold) {
     let rawCandidates = [];
+    let highestRawScore = 0;
 
-    if (detectionSession) {
-      try {
-        const feeds = {};
-        const inputName = detectionSession.inputNames[0] || "images";
-        feeds[inputName] = prep.tensor;
+    if (!detectionSession) {
+      return { detectedBoxes: [], highestRawScore: 0 };
+    }
 
-        const output = await detectionSession.run(feeds);
-        const outTensor = output[detectionSession.outputNames[0]];
+    try {
+      const feeds = {};
+      const inputName = detectionSession.inputNames[0] || "images";
+      feeds[inputName] = prep.tensor;
 
-        if (outTensor && outTensor.data) {
-          const data = outTensor.data;
-          const dims = outTensor.dims || [1, 84, 8400];
-          const numChannels = dims[1];
-          const numAnchors = dims[2];
+      const output = await detectionSession.run(feeds);
+      const outTensor = output[detectionSession.outputNames[0]];
 
+      if (outTensor && outTensor.data) {
+        const data = outTensor.data;
+        const dims = outTensor.dims || [1, 5, 8400];
+        let numChannels = dims[1];
+        let numAnchors = dims[2];
+        let transposed = false;
+        if (numChannels > numAnchors) {
+          numAnchors = dims[1];
+          numChannels = dims[2];
+          transposed = true;
+        }
+
+        if (transposed) {
+          for (let a = 0; a < numAnchors; a++) {
+            let maxScore = 0;
+            let classId = 0;
+            for (let c = 4; c < numChannels; c++) {
+              const score = data[a * numChannels + c];
+              if (score > maxScore) {
+                maxScore = score;
+                classId = c - 4;
+              }
+            }
+
+            if (maxScore > highestRawScore) {
+              highestRawScore = maxScore;
+            }
+
+            if (maxScore >= threshold) {
+              const cx = data[a * numChannels + 0];
+              const cy = data[a * numChannels + 1];
+              const w = data[a * numChannels + 2];
+              const h = data[a * numChannels + 3];
+
+              const x1 = Math.max(0, (cx - w / 2 - prep.padX) / prep.scale);
+              const y1 = Math.max(0, (cy - h / 2 - prep.padY) / prep.scale);
+              const x2 = Math.min(prep.origWidth, (cx + w / 2 - prep.padX) / prep.scale);
+              const y2 = Math.min(prep.origHeight, (cy + h / 2 - prep.padY) / prep.scale);
+
+              rawCandidates.push({
+                bbox: [Math.round(x1), Math.round(y1), Math.round(x2), Math.round(y2)],
+                confidence: maxScore,
+                classId
+              });
+            }
+          }
+        } else {
           for (let a = 0; a < numAnchors; a++) {
             let maxScore = 0;
             let classId = 0;
@@ -239,7 +290,11 @@ export const tigerDetector = {
               }
             }
 
-            if (maxScore > 0.30) {
+            if (maxScore > highestRawScore) {
+              highestRawScore = maxScore;
+            }
+
+            if (maxScore >= threshold) {
               const cx = data[0 * numAnchors + a];
               const cy = data[1 * numAnchors + a];
               const w = data[2 * numAnchors + a];
@@ -258,46 +313,89 @@ export const tigerDetector = {
             }
           }
         }
-      } catch (e) {
-        console.warn(`[TigerDetector] Detection tensor evaluation note:`, e.message);
+      }
+    } catch (e) {
+      console.warn(`[TigerDetector] Detection tensor evaluation note:`, e.message);
+    }
+
+    const detectedBoxes = this.applyNMS(rawCandidates, 0.45);
+    return { detectedBoxes, highestRawScore };
+  },
+
+  /*
+  | 6. Run Detection & Generate Crops on a Single Image (Smart Multi-Pass)
+  */
+  async detectAndCrop(imageSrc, manifestOrOptions = null, confThreshold = 0.35) {
+    await this.init();
+
+    let filename = "image.jpg";
+    let threshold = confThreshold;
+    if (typeof manifestOrOptions === "string") {
+      filename = manifestOrOptions;
+    } else if (manifestOrOptions && typeof manifestOrOptions === "object") {
+      filename = manifestOrOptions.filename || manifestOrOptions.name || filename;
+      if (typeof manifestOrOptions.confThreshold === "number") {
+        threshold = manifestOrOptions.confThreshold;
+      }
+    } else if (typeof imageSrc === "string" && !imageSrc.startsWith("data:") && !imageSrc.startsWith("blob:")) {
+      filename = imageSrc.split("/").pop().split("?")[0] || filename;
+    }
+
+    const baseName = filename.replace(/\.[^/.]+$/, "");
+
+    // Pass 1: Standard Full-Frame Evaluation
+    let prep = await this.preprocessImage(imageSrc, 640, 0);
+    let evalRes = await this._evaluateTensor(prep, threshold);
+    let detectedBoxes = evalRes.detectedBoxes;
+    let highestRawScore = evalRes.highestRawScore;
+
+    // Pass 2 (Contextual Margin Pass):
+    // If Pass 1 finds no tiger (or score is below threshold), evaluate with contextual margin padding.
+    // This allows pre-cropped images (e.g. ATRW crops) and tight tiger close-ups to be recognized by YOLO without false blanks.
+    if (detectedBoxes.length === 0) {
+      try {
+        const paddedPrep = await this.preprocessImage(imageSrc, 640, 0.45);
+        const paddedEval = await this._evaluateTensor(paddedPrep, threshold);
+        if (paddedEval.detectedBoxes.length > 0) {
+          detectedBoxes = paddedEval.detectedBoxes;
+          highestRawScore = paddedEval.highestRawScore;
+          prep = paddedPrep; // use padded resolution references for crop coordinates
+        } else if (paddedEval.highestRawScore > highestRawScore) {
+          highestRawScore = paddedEval.highestRawScore;
+        }
+      } catch (paddedErr) {
+        console.warn("[TigerDetector] Contextual pass note:", paddedErr.message);
       }
     }
 
-    // Apply NMS
-    let detectedBoxes = this.applyNMS(rawCandidates, 0.45);
-
-    // Fallback to ground truth if ONNX is in fallback mode
-    if (detectedBoxes.length === 0 && manifestEntry?.ground_truth_bboxes && manifestEntry.has_tiger) {
-      detectedBoxes = manifestEntry.ground_truth_bboxes.map((bbox, idx) => ({
-        bbox,
-        confidence: 0.93 + (idx * 0.02),
-        classId: 0
-      }));
-    }
-
+    // Classification
     const hasTiger = detectedBoxes.length > 0;
     const isBlank = !hasTiger;
     const isMultipleTigers = detectedBoxes.length > 1;
 
-    // Generate individual tiger crops from bounding boxes
-    const crops = [];
-    for (let i = 0; i < detectedBoxes.length; i++) {
-      const { bbox, confidence } = detectedBoxes[i];
-      const cropResult = this.cropBoundingBox(prep.img, bbox);
+    console.log(`[TigerDetector] ${filename} result: hasTiger=${hasTiger}, maxScore=${(highestRawScore * 100).toFixed(1)}%, detectedBoxes=${detectedBoxes.length}, threshold=${(threshold * 100)}%`);
 
-      const cropFilename = `${baseName}_crop_${i + 1}.jpg`;
-      crops.push({
-        cropIndex: i + 1,
-        cropFilename,
-        cropDataUrl: cropResult.cropDataUrl,
-        cropWidth: cropResult.cropWidth,
-        cropHeight: cropResult.cropHeight,
-        bbox: cropResult.adjustedBbox,
-        originalBbox: bbox,
-        confidence: Math.round(confidence * 1000) / 10, // e.g. 94.2%
-        sourceImage: imageSrc,
-        sourceFilename: filename
-      });
+    // Generate individual tiger crops from bounding boxes (empty if blank)
+    const crops = [];
+    if (hasTiger) {
+      for (let i = 0; i < detectedBoxes.length; i++) {
+        const { bbox, confidence } = detectedBoxes[i];
+        const cropResult = this.cropBoundingBox(prep.img, bbox);
+
+        const cropFilename = `${baseName}_crop_${i + 1}.jpg`;
+        crops.push({
+          cropIndex: i + 1,
+          cropFilename,
+          cropDataUrl: cropResult.cropDataUrl,
+          cropWidth: cropResult.cropWidth,
+          cropHeight: cropResult.cropHeight,
+          bbox: cropResult.adjustedBbox,
+          originalBbox: bbox,
+          confidence: Math.round(confidence * 1000) / 10, // e.g. 94.2%
+          sourceImage: imageSrc,
+          sourceFilename: filename
+        });
+      }
     }
 
     return {
@@ -310,6 +408,7 @@ export const tigerDetector = {
       isBlank,
       tigerCount: crops.length,
       isMultipleTigers,
+      highestRawScore: Math.round(highestRawScore * 1000) / 10,
       classification: isBlank
         ? "BLANK_QUARANTINE"
         : (isMultipleTigers ? "MULTIPLE_TIGERS_DETECTED" : "SINGLE_TIGER_DETECTED"),

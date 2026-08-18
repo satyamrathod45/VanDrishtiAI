@@ -7,12 +7,16 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies and Build Output
 node_modules
 dist
 dist-ssr
 release
 dist-electron
 *.local
+
+# Source Maps
+*.map
 
 # Editor directories and files
 .vscode/*
@@ -28,3 +32,7 @@ dist-electron
 # Generated Crops Cache
 crops/
 public/crops/
+
+# Large Datasets
+atrw_reid_train/
+dataset/

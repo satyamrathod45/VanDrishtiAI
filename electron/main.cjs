@@ -55,9 +55,11 @@ function createWindow() {
   if (isDev && process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else if (isDev) {
-    // Try local dev server first, fall back to dist
+    // Try local dev server on port 5173, then 5174, then fallback to built files
     mainWindow.loadURL("http://localhost:5173").catch(() => {
-      mainWindow.loadURL("app://-/index.html");
+      mainWindow.loadURL("http://localhost:5174").catch(() => {
+        mainWindow.loadURL("app://-/index.html");
+      });
     });
   } else {
     mainWindow.loadURL("app://-/index.html");
@@ -149,7 +151,29 @@ ipcMain.handle("dialog:open-directory", async () => {
   }
 });
 
-// 2. Save Extracted Crops Directly to Local Disk
+// 2. Read Image on Disk as Base64 Data URL (bypasses web security/CORS for local files)
+ipcMain.handle("fs:read-image-data-url", async (event, filePath) => {
+  try {
+    if (!filePath || !fs.existsSync(filePath)) {
+      return { success: false, error: "File does not exist: " + filePath };
+    }
+    const ext = path.extname(filePath).toLowerCase();
+    const mimeMap = {
+      ".jpg": "image/jpeg",
+      ".jpeg": "image/jpeg",
+      ".png": "image/png",
+      ".webp": "image/webp",
+      ".bmp": "image/bmp",
+    };
+    const mime = mimeMap[ext] || "image/jpeg";
+    const data = fs.readFileSync(filePath);
+    return { success: true, dataUrl: `data:${mime};base64,${data.toString("base64")}` };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// 3. Save Extracted Crops Directly to Local Disk
 ipcMain.handle("crops:save", async (event, { crops = [] }) => {
   try {
     const baseDir = app.isPackaged

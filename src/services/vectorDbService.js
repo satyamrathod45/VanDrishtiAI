@@ -16,6 +16,27 @@ import { TigerEmbedding } from "../models/TigerEmbedding.js";
 import { tigerReid } from "./tigerReid.js";
 
 const STORAGE_KEY = "vandrishti_vector_store_v1";
+const IDB_NAME = "VanDrishti_VectorDB";
+const IDB_STORE = "user_sightings";
+
+function openIDB() {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined" || !window.indexedDB) return resolve(null);
+    try {
+      const req = window.indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) {
+          db.createObjectStore(IDB_STORE, { keyPath: "id" });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch (e) {
+      resolve(null);
+    }
+  });
+}
 
 class VectorDbService {
   constructor() {
@@ -26,15 +47,16 @@ class VectorDbService {
   }
 
   /**
-   * 1. Initialize the Vector Store (loads seed data + merged local modifications)
+   * 1. Initialize the Vector Store (loads ground truth seed data + merged local modifications)
    * @param {Object} [options]
    * @param {string} [options.seedUrl="/data/tiger_embeddings_data.json"]
    * @param {Array<Object>} [options.seedData]
    * @param {boolean} [options.persistLocally=true]
+   * @param {boolean} [options.forceReload=false]
    * @returns {Promise<{ success: boolean, count: number }>}
    */
   async init(options = {}) {
-    if (this.isInitialized) {
+    if (this.isInitialized && !options.forceReload && this.store.size > 0) {
       return { success: true, count: this.store.size };
     }
 
@@ -48,45 +70,59 @@ class VectorDbService {
     this.isInitializing = true;
 
     try {
-      let loadedRecords = [];
+      this.store.clear();
 
-      // A. Try loading persisted modifications from LocalStorage first (browser environment)
-      if (typeof window !== "undefined" && window.localStorage && options.persistLocally !== false) {
+      // 1. ALWAYS load baseline master catalog embeddings from /data/tiger_embeddings_data.json
+      let seedRecords = [];
+      if (options.seedData && Array.isArray(options.seedData)) {
+        seedRecords = options.seedData;
+      } else if (typeof window !== "undefined" && window.fetch) {
+        const seedUrl = options.seedUrl || "/data/tiger_embeddings_data.json";
         try {
-          const stored = window.localStorage.getItem(STORAGE_KEY);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              loadedRecords = parsed;
-              console.log(`[VectorDB] Loaded ${loadedRecords.length} records from localStorage cache.`);
-            }
+          const res = await fetch(seedUrl);
+          if (res.ok) {
+            seedRecords = await res.json();
+            console.log(`[VectorDB] Loaded ${seedRecords.length} baseline embeddings from ${seedUrl}.`);
           }
         } catch (e) {
-          console.warn("[VectorDB] Failed to read from localStorage:", e.message);
+          console.warn(`[VectorDB] Notice on fetching ${seedUrl}:`, e.message);
         }
-      }
 
-      // B. If no local cache, load from provided seedData or seedUrl
-      if (loadedRecords.length === 0) {
-        if (options.seedData && Array.isArray(options.seedData)) {
-          loadedRecords = options.seedData;
-        } else if (typeof window !== "undefined" && window.fetch) {
-          const seedUrl = options.seedUrl || "/data/tiger_embeddings_data.json";
+        // Fallback to master db if needed
+        if (seedRecords.length === 0) {
           try {
-            const res = await fetch(seedUrl);
-            if (res.ok) {
-              loadedRecords = await res.json();
-              console.log(`[VectorDB] Loaded ${loadedRecords.length} seed embeddings from ${seedUrl}.`);
+            const masterRes = await fetch("/data/vandrishti_master_db.json");
+            if (masterRes.ok) {
+              const masterData = await masterRes.json();
+              if (masterData && masterData.tigers) {
+                for (const t of masterData.tigers) {
+                  for (const s of (t.sightings || [])) {
+                    if (s.vector) {
+                      seedRecords.push({
+                        id: s.id,
+                        tiger_id: t.tiger_id,
+                        crop_path: s.crop_path,
+                        source_image: s.source_image || `${s.id}.jpg`,
+                        camera_id: s.camera_id,
+                        station_name: s.station_name,
+                        zone: s.zone,
+                        gps: s.gps,
+                        timestamp: s.timestamp,
+                        review_status: "verified",
+                        vector: s.vector,
+                      });
+                    }
+                  }
+                }
+              }
             }
-          } catch (e) {
-            console.warn(`[VectorDB] Notice on fetching ${seedUrl}:`, e.message);
+          } catch (mErr) {
+            console.warn("[VectorDB] Master DB fallback:", mErr.message);
           }
         }
       }
 
-      // Populate in-memory map
-      this.store.clear();
-      for (const item of loadedRecords) {
+      for (const item of seedRecords) {
         try {
           const embedding = item instanceof TigerEmbedding ? item : new TigerEmbedding(item);
           this.store.set(embedding.id, embedding);
@@ -95,8 +131,33 @@ class VectorDbService {
         }
       }
 
+      // 2. Load and merge user sightings from IndexedDB (limitless storage)
+      try {
+        const db = await openIDB();
+        if (db) {
+          await new Promise((resolve) => {
+            const tx = db.transaction(IDB_STORE, "readonly");
+            const req = tx.objectStore(IDB_STORE).getAll();
+            req.onsuccess = () => {
+              if (Array.isArray(req.result)) {
+                for (const uItem of req.result) {
+                  try {
+                    const emb = uItem instanceof TigerEmbedding ? uItem : new TigerEmbedding(uItem);
+                    this.store.set(emb.id, emb);
+                  } catch (uErr) {}
+                }
+              }
+              resolve();
+            };
+            req.onerror = () => resolve();
+          });
+        }
+      } catch (e) {
+        // IDB fallback
+      }
+
       this.isInitialized = true;
-      console.log(`[VectorDB] Initialized with ${this.store.size} vector embeddings.`);
+      console.log(`[VectorDB] Vector Database initialized with ${this.store.size} vector embeddings across all resident tigers.`);
       return { success: true, count: this.store.size };
     } finally {
       this.isInitializing = false;
@@ -110,8 +171,43 @@ class VectorDbService {
    */
   insert(data) {
     const embedding = data instanceof TigerEmbedding ? data : new TigerEmbedding(data);
+    embedding.isUserGenerated = true;
     this.store.set(embedding.id, embedding);
-    this.persist();
+    this.persist(embedding);
+    return embedding;
+  }
+
+  /**
+   * Register a newly detected/confirmed tiger sighting and vector embedding into the database.
+   * Automatically normalizes metadata, updates the in-memory map,
+   * and persists to IndexedDB storage so all future searches recognize this tiger.
+   * @param {Object} sightingData
+   * @returns {TigerEmbedding}
+   */
+  registerTigerSighting(sightingData) {
+    const id = sightingData.id || `USER_SIGHTING_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const tigerId = sightingData.tiger_id || sightingData.assignedTigerId || sightingData.tigerId || "UNASSIGNED";
+    
+    const embedding = new TigerEmbedding({
+      id,
+      tiger_id: tigerId,
+      vector: sightingData.vector || sightingData.embedding,
+      crop_path: sightingData.crop_path || sightingData.cropDataUrl || sightingData.cropFilename || "",
+      source_image: sightingData.source_image || sightingData.sourceFilename || sightingData.filename || "",
+      camera_id: sightingData.camera_id || sightingData.cameraId || "CAM-TAD-01",
+      station_name: sightingData.station_name || sightingData.zone || "Field Station",
+      zone: sightingData.zone || "Core",
+      gps: sightingData.gps || { lat: 20.25, lng: 79.35 },
+      timestamp: sightingData.timestamp || sightingData.collectionDate || new Date().toISOString(),
+      reid_confidence: Number(sightingData.reid_confidence || sightingData.confidence || 0),
+      review_status: sightingData.review_status || (sightingData.isNewTiger ? "verified" : "pending_review"),
+      verified_by: sightingData.verified_by || "VanDrishti AI Pipeline",
+    });
+
+    embedding.isUserGenerated = true;
+    this.store.set(embedding.id, embedding);
+    this.persist(embedding);
+    console.log(`[VectorDB] 🐅 Registered Tiger Sighting: ${embedding.id} | Tiger ID: ${embedding.tiger_id} | Total in DB: ${this.store.size}`);
     return embedding;
   }
 
@@ -353,16 +449,28 @@ class VectorDbService {
   }
 
   /**
-   * 14. Persist In-Memory Index to Browser Storage
+   * 14. Persist In-Memory Index to IndexedDB Storage (Limitless storage)
+   * @param {TigerEmbedding|Object} [customSighting=null]
    */
-  persist() {
-    if (typeof window !== "undefined" && window.localStorage) {
-      try {
-        const records = Array.from(this.store.values()).map((s) => s.toJSON());
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-      } catch (e) {
-        console.warn("[VectorDB] Persistence error:", e.message);
+  async persist(customSighting = null) {
+    try {
+      const db = await openIDB();
+      if (db) {
+        const tx = db.transaction(IDB_STORE, "readwrite");
+        const store = tx.objectStore(IDB_STORE);
+        if (customSighting) {
+          const itemToSave = customSighting instanceof TigerEmbedding ? customSighting.toJSON() : customSighting;
+          store.put(itemToSave);
+        } else {
+          for (const s of this.store.values()) {
+            if (s.isUserGenerated || s.id.startsWith("SIGHTING") || s.id.startsWith("USER") || s.id.startsWith("CROP") || s.id.startsWith("REVIEW") || s.id.startsWith("NEW")) {
+              store.put(s.toJSON());
+            }
+          }
+        }
       }
+    } catch (e) {
+      console.warn("[VectorDB] Persistence notice:", e.message);
     }
   }
 
@@ -396,13 +504,44 @@ class VectorDbService {
   }
 
   /**
-   * 17. Reset store to initial state
+   * 17. Generate a unique new Tiger ID for newly detected individuals
+   * @returns {string}
    */
-  clear() {
+  generateNewTigerId() {
+    const existingIds = new Set();
+    for (const sighting of this.store.values()) {
+      if (sighting.tiger_id) existingIds.add(sighting.tiger_id);
+    }
+
+    let maxNum = 100;
+    for (const id of existingIds) {
+      const match = String(id).match(/T-(\d+)/i) || String(id).match(/TGR-(\d+)/i);
+      if (match && match[1]) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+    return `T-${maxNum + 1}`;
+  }
+
+  /**
+   * 18. Reset store to initial state
+   */
+  async clear() {
     this.store.clear();
     if (typeof window !== "undefined" && window.localStorage) {
       window.localStorage.removeItem(STORAGE_KEY);
+      window.localStorage.removeItem("vandrishti_user_sightings_v1");
     }
+    try {
+      const db = await openIDB();
+      if (db) {
+        const tx = db.transaction(IDB_STORE, "readwrite");
+        tx.objectStore(IDB_STORE).clear();
+      }
+    } catch (e) {}
     this.isInitialized = false;
   }
 }

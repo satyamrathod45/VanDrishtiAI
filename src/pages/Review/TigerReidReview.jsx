@@ -20,6 +20,8 @@ import {
 import {
   tigerReidReviewQueue,
 } from "../../mocks/reviewMockData.js";
+import { vectorDbService } from "../../services/vectorDbService.js";
+import { tigerReid } from "../../services/tigerReid.js";
 
 
 export default function TigerReidReview() {
@@ -65,10 +67,42 @@ export default function TigerReidReview() {
     100;
 
 
-  const confirmAndNext = () => {
+  const confirmAndNext = async () => {
 
     if (!decision) return;
 
+    // Automatically persist confirmed sighting / new tiger into Vector Database
+    if (decision === "new" || decision === "existing") {
+      const assignedId = decision === "existing" ? selectedTiger : (current.tigerId || `T-${Date.now().toString().slice(-4)}`);
+      try {
+        await vectorDbService.init();
+        let vector = current.vector;
+        if (!vector && (current.cropUrl || current.cropPath || current.image)) {
+          const imgUrl = current.cropUrl || current.cropPath || current.image;
+          const embRes = await tigerReid.extractEmbedding(imgUrl);
+          vector = embRes.vector;
+        }
+
+        if (vector) {
+          vectorDbService.registerTigerSighting({
+            id: current.id || `REVIEW_${Date.now()}`,
+            tiger_id: assignedId,
+            vector: vector,
+            crop_path: current.cropUrl || current.cropPath || current.image,
+            source_image: current.sourceImage || current.image || "sighting.jpg",
+            camera_id: current.camera || "CAM-01",
+            station_name: current.location || "Field Review",
+            zone: "Core",
+            timestamp: current.timestamp || new Date().toISOString(),
+            review_status: "verified",
+            verified_by: "Wildlife Officer",
+            isNewTiger: decision === "new",
+          });
+        }
+      } catch (err) {
+        console.warn("[TigerReidReview] Vector DB registration note:", err.message);
+      }
+    }
 
     setCompleted([
       ...completed,
